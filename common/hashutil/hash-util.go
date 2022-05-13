@@ -2,9 +2,9 @@ package hashutil
 
 import (
 	"bufio"
-	"chasam/utils/hashutil/ed2k"
 	"crypto/sha1"
 	"fmt"
+	"github.com/tsmweb/chasam/pkg/ed2k"
 	"io"
 )
 

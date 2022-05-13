@@ -6,7 +6,7 @@ import (
 )
 
 func TestExtractExif(t *testing.T) {
-	f, err := os.Open("./image.jpg")
+	f, err := os.Open("../../test/img-gps.jpg")
 	if err != nil {
 		t.Fatal(err)
 	}

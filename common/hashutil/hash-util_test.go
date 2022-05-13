@@ -12,6 +12,8 @@ func TestHashSHA1(t *testing.T) {
 	}
 	defer f.Close()
 
+	t.Log(f.Name())
+
 	h, err := HashSHA1(f)
 	if err != nil {
 		t.Fatal(err)
