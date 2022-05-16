@@ -2,7 +2,7 @@ package media
 
 import (
 	"fmt"
-	"github.com/tsmweb/chasam/common/imageutil"
+	"github.com/tsmweb/chasam/common/mediautil"
 	"os"
 	"path/filepath"
 	"time"
@@ -31,7 +31,7 @@ func New(path string) (*Media, error) {
 	defer file.Close()
 
 	// checks if it is valid media.
-	mediaType, err := imageutil.GetMediaType(file)
+	mediaType, err := mediautil.GetMediaType(file)
 	if err != nil {
 		return nil, err
 	}

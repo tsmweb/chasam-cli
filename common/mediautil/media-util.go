@@ -1,15 +1,17 @@
-package imageutil
+package mediautil
 
 import (
 	"errors"
 	"fmt"
 	"github.com/nfnt/resize"
 	"golang.org/x/image/bmp"
+	"golang.org/x/image/tiff"
+	"golang.org/x/image/webp"
 	"image"
+	"image/gif"
 	"image/jpeg"
 	"image/png"
 	"io"
-	"net/http"
 	"os"
 )
 
@@ -25,15 +27,17 @@ const (
 	ImagePNG  MediaType = "image/png"  // implement
 	ImageBMP  MediaType = "image/bmp"  // implement
 	ImageWEBP MediaType = "image/webp" // implement
-	ImageTIFF MediaType = "image/tiff"
+	ImageTIFF MediaType = "image/tiff" // implement
 
-	VideoMPEG  MediaType = "video/mpeg"
-	VideoMP4   MediaType = "video/mp4"
-	VideoAVI   MediaType = "video/avi"       // implement
-	VideoOGG   MediaType = "application/ogg" // implement
-	VideoWEBM  MediaType = "video/webm"      // implement
-	Video3GPP  MediaType = "video/3gpp"
-	Video3GPP2 MediaType = "video/3gpp2"
+	VideoMPEG MediaType = "video/mpeg"      // implement
+	VideoMP4  MediaType = "video/mp4"       // implement
+	VideoAVI  MediaType = "video/avi"       // implement
+	VideoOGG  MediaType = "application/ogg" // implement
+	VideoWEBM MediaType = "video/webm"      // implement
+	VideoWMV  MediaType = "video/wmv"       // implement
+	VideoFLV  MediaType = "video/flv"       // implement
+	VideoMKV  MediaType = "video/mkv"       // implement
+	VideoMOV  MediaType = "video/mov"       //implement
 )
 
 var ErrUnsupportedMediaType = errors.New("unsupported media type")
@@ -48,7 +52,7 @@ func GetMediaType(out *os.File) (mediaType MediaType, err error) {
 		return
 	}
 
-	contentType := http.DetectContentType(fileHeader)
+	contentType := DetectContentType(fileHeader)
 
 	switch contentType {
 	case ImageGIF.String():
@@ -84,11 +88,17 @@ func GetMediaType(out *os.File) (mediaType MediaType, err error) {
 	case VideoWEBM.String():
 		mediaType = VideoWEBM
 
-	case Video3GPP.String():
-		mediaType = Video3GPP
+	case VideoWMV.String():
+		mediaType = VideoWMV
 
-	case Video3GPP2.String():
-		mediaType = Video3GPP2
+	case VideoFLV.String():
+		mediaType = VideoFLV
+
+	case VideoMKV.String():
+		mediaType = VideoMKV
+
+	case VideoMOV.String():
+		mediaType = VideoMOV
 
 	default:
 		err = ErrUnsupportedMediaType
@@ -99,12 +109,16 @@ func GetMediaType(out *os.File) (mediaType MediaType, err error) {
 
 func Encode(w io.Writer, m image.Image, t string) (err error) {
 	switch t {
+	case ImageGIF.String():
+		err = gif.Encode(w, m, nil)
 	case ImageJPEG.String():
 		err = jpeg.Encode(w, m, &jpeg.Options{Quality: jpeg.DefaultQuality})
 	case ImagePNG.String():
 		err = png.Encode(w, m)
 	case ImageBMP.String():
 		err = bmp.Encode(w, m)
+	case ImageTIFF.String():
+		err = tiff.Encode(w, m, nil)
 	default:
 		err = ErrUnsupportedMediaType
 	}
@@ -114,12 +128,18 @@ func Encode(w io.Writer, m image.Image, t string) (err error) {
 
 func Decode(f *os.File, t string) (img image.Image, err error) {
 	switch t {
+	case ImageGIF.String():
+		img, err = gif.Decode(f)
 	case ImageJPEG.String():
 		img, err = jpeg.Decode(f)
 	case ImagePNG.String():
 		img, err = png.Decode(f)
 	case ImageBMP.String():
 		img, err = bmp.Decode(f)
+	case ImageWEBP.String():
+		img, err = webp.Decode(f)
+	case ImageTIFF.String():
+		img, err = tiff.Decode(f)
 	default:
 		err = fmt.Errorf("unrecognized file")
 	}

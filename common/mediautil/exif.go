@@ -1,4 +1,4 @@
-package imageutil
+package mediautil
 
 import (
 	"github.com/rwcarlsen/goexif/exif"
