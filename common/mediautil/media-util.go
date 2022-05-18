@@ -15,34 +15,34 @@ import (
 	"os"
 )
 
-type MediaType string
+type ContentType string
 
-func (mt MediaType) String() string {
-	return string(mt)
+func (ct ContentType) String() string {
+	return string(ct)
 }
 
 const (
-	ImageGIF  MediaType = "image/gif"  // implement
-	ImageJPEG MediaType = "image/jpeg" // implement
-	ImagePNG  MediaType = "image/png"  // implement
-	ImageBMP  MediaType = "image/bmp"  // implement
-	ImageWEBP MediaType = "image/webp" // implement
-	ImageTIFF MediaType = "image/tiff" // implement
+	ImageGIF  ContentType = "image/gif"
+	ImageJPEG ContentType = "image/jpeg"
+	ImagePNG  ContentType = "image/png"
+	ImageBMP  ContentType = "image/bmp"
+	ImageWEBP ContentType = "image/webp"
+	ImageTIFF ContentType = "image/tiff"
 
-	VideoMPEG MediaType = "video/mpeg"      // implement
-	VideoMP4  MediaType = "video/mp4"       // implement
-	VideoAVI  MediaType = "video/avi"       // implement
-	VideoOGG  MediaType = "application/ogg" // implement
-	VideoWEBM MediaType = "video/webm"      // implement
-	VideoWMV  MediaType = "video/wmv"       // implement
-	VideoFLV  MediaType = "video/flv"       // implement
-	VideoMKV  MediaType = "video/mkv"       // implement
-	VideoMOV  MediaType = "video/mov"       //implement
+	VideoMPEG ContentType = "video/mpeg"
+	VideoMP4  ContentType = "video/mp4"
+	VideoAVI  ContentType = "video/avi"
+	VideoOGG  ContentType = "video/ogg"
+	VideoWEBM ContentType = "video/webm"
+	VideoWMV  ContentType = "video/wmv"
+	VideoFLV  ContentType = "video/flv"
+	VideoMKV  ContentType = "video/mkv"
+	VideoMOV  ContentType = "video/mov"
 )
 
 var ErrUnsupportedMediaType = errors.New("unsupported media type")
 
-func GetMediaType(out *os.File) (mediaType MediaType, err error) {
+func GetContentType(out *os.File) (contentType ContentType, err error) {
 	fileHeader := make([]byte, 512)
 
 	if _, err = out.Read(fileHeader); err != nil {
@@ -52,53 +52,53 @@ func GetMediaType(out *os.File) (mediaType MediaType, err error) {
 		return
 	}
 
-	contentType := DetectContentType(fileHeader)
+	_contentType := DetectContentType(fileHeader)
 
-	switch contentType {
+	switch _contentType {
 	case ImageGIF.String():
-		mediaType = ImageGIF
+		contentType = ImageGIF
 
 	case ImageJPEG.String():
-		mediaType = ImageJPEG
+		contentType = ImageJPEG
 
 	case ImagePNG.String():
-		mediaType = ImagePNG
+		contentType = ImagePNG
 
 	case ImageBMP.String():
-		mediaType = ImageBMP
+		contentType = ImageBMP
 
 	case ImageWEBP.String():
-		mediaType = ImageWEBP
+		contentType = ImageWEBP
 
 	case ImageTIFF.String():
-		mediaType = ImageTIFF
+		contentType = ImageTIFF
 
 	case VideoMPEG.String():
-		mediaType = VideoMPEG
+		contentType = VideoMPEG
 
 	case VideoMP4.String():
-		mediaType = VideoMP4
+		contentType = VideoMP4
 
 	case VideoAVI.String():
-		mediaType = VideoAVI
+		contentType = VideoAVI
 
 	case VideoOGG.String():
-		mediaType = VideoOGG
+		contentType = VideoOGG
 
 	case VideoWEBM.String():
-		mediaType = VideoWEBM
+		contentType = VideoWEBM
 
 	case VideoWMV.String():
-		mediaType = VideoWMV
+		contentType = VideoWMV
 
 	case VideoFLV.String():
-		mediaType = VideoFLV
+		contentType = VideoFLV
 
 	case VideoMKV.String():
-		mediaType = VideoMKV
+		contentType = VideoMKV
 
 	case VideoMOV.String():
-		mediaType = VideoMOV
+		contentType = VideoMOV
 
 	default:
 		err = ErrUnsupportedMediaType

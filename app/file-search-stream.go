@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/tsmweb/chasam/app/media"
 	"github.com/tsmweb/chasam/common/mediautil"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -65,8 +64,10 @@ type FileSearchStream struct {
 	logFn    func(l Log)
 	errorCh  chan error
 	errorFn  func(err error)
+	filterCh chan media.Media
+	filterFn func(m media.Media) bool
 	mediaCh  chan media.Media
-	foundCh  chan media.Media
+	matchCh  chan media.Media
 	wg       sync.WaitGroup
 }
 
@@ -79,10 +80,11 @@ func NewFileSearchStream(roots []string) *FileSearchStream {
 		roots:    roots,
 		pipes:    new(pipeList),
 		semaCh:   make(chan struct{}, semaphoreMax),
-		mediaCh:  make(chan media.Media, backpressure),
 		logCh:    make(chan Log, backpressure),
 		errorCh:  make(chan error, backpressure),
-		foundCh:  make(chan media.Media, backpressure),
+		mediaCh:  make(chan media.Media, backpressure),
+		filterCh: make(chan media.Media, backpressure),
+		matchCh:  make(chan media.Media, backpressure),
 	}
 	fs.init()
 
@@ -94,7 +96,7 @@ func (fs *FileSearchStream) init() {
 	fs.wg.Add(1)
 	go func() {
 		defer func() {
-			log.Println("\t[x] OnLog()")
+			//log.Println("\t[x] OnLog()")
 			fs.wg.Done()
 		}()
 
@@ -109,7 +111,7 @@ func (fs *FileSearchStream) init() {
 	fs.wg.Add(1)
 	go func() {
 		defer func() {
-			log.Println("\t[x] OnError()")
+			//log.Println("\t[x] OnError()")
 			fs.wg.Done()
 		}()
 
@@ -120,6 +122,28 @@ func (fs *FileSearchStream) init() {
 				fmt.Fprint(os.Stderr, err)
 			}
 		}
+	}()
+
+	// handle filter.
+	fs.wg.Add(1)
+	go func() {
+		defer func() {
+			//log.Println("\t[x] OnFilter()")
+			fs.wg.Done()
+		}()
+
+		for m := range fs.mediaCh {
+			if fs.filterFn == nil {
+				fs.filterCh <- m
+				continue
+			}
+
+			if fs.filterFn(m) {
+				fs.filterCh <- m
+			}
+		}
+
+		close(fs.filterCh)
 	}()
 }
 
@@ -133,11 +157,16 @@ func (fs *FileSearchStream) OnError(fn func(err error)) *FileSearchStream {
 	return fs
 }
 
-func (fs *FileSearchStream) OnPipe(fn FileSearchFunc) *FileSearchStream {
+func (fs *FileSearchStream) OnFilter(fn func(m media.Media) bool) *FileSearchStream {
+	fs.filterFn = fn
+	return fs
+}
+
+func (fs *FileSearchStream) OnSearch(fn FileSearchFunc) *FileSearchStream {
 	var ch chan media.Media
 
 	if fs.pipes.len == 0 {
-		ch = fs.mediaCh
+		ch = fs.filterCh
 	} else {
 		ch = make(chan media.Media, backpressure)
 	}
@@ -147,13 +176,13 @@ func (fs *FileSearchStream) OnPipe(fn FileSearchFunc) *FileSearchStream {
 	return fs
 }
 
-func (fs *FileSearchStream) OnFound(fn func(ctx context.Context, m media.Media)) {
-	defer log.Println("\t[x] OnFound()")
-	fs.initPipe()
-	go fs.runSearch()
+func (fs *FileSearchStream) OnMatch(fn func(m media.Media)) {
+	//defer log.Println("\t[x] OnMatch()")
+	fs.initSearch()
+	go fs.runWalkDir()
 
-	for m := range fs.foundCh {
-		fn(fs.ctx, m)
+	for m := range fs.matchCh {
+		fn(m)
 	}
 
 	close(fs.logCh)
@@ -163,10 +192,10 @@ func (fs *FileSearchStream) OnFound(fn func(ctx context.Context, m media.Media))
 
 func (fs *FileSearchStream) Stop() {
 	fs.cancelFn()
-	close(fs.foundCh)
+	close(fs.matchCh)
 }
 
-func (fs *FileSearchStream) initPipe() {
+func (fs *FileSearchStream) initSearch() {
 	n := fs.pipes.head
 
 	for n != nil {
@@ -174,39 +203,38 @@ func (fs *FileSearchStream) initPipe() {
 		n = n.next
 
 		if n == nil {
-			go fs.runPipe(p.fn, nil, p.ch)
+			go fs.runSearch(p.fn, nil, p.ch)
 		} else {
-			go fs.runPipe(p.fn, n.value.ch, p.ch)
+			go fs.runSearch(p.fn, n.value.ch, p.ch)
 		}
 	}
 }
 
-func (fs *FileSearchStream) runPipe(fn FileSearchFunc, outCh chan<- media.Media, inCh <-chan media.Media) {
-	defer func() {
-		if outCh != nil {
-			close(outCh)
-		} else {
-			close(fs.foundCh)
-		}
-		log.Println("\t[x] runPipe()")
-	}()
+func (fs *FileSearchStream) runSearch(fn FileSearchFunc, outCh chan<- media.Media, inCh <-chan media.Media) {
+	//defer log.Println("\t[x] runSearch()")
 
 	for m := range inCh {
-		found, err := fn(fs.ctx, m)
+		match, err := fn(fs.ctx, m)
 		if err != nil {
 			fs.errorCh <- err
 			continue
 		}
-		if found {
-			fs.foundCh <- m
+		if match {
+			fs.matchCh <- m
 		} else if outCh != nil {
 			outCh <- m
 		}
 	}
+
+	if outCh != nil {
+		close(outCh)
+	} else {
+		close(fs.matchCh)
+	}
 }
 
-func (fs *FileSearchStream) runSearch() {
-	defer log.Println("\t[x] runSearch()")
+func (fs *FileSearchStream) runWalkDir() {
+	//defer log.Println("\t[x] runWalkDir()")
 	var wg sync.WaitGroup
 
 	for _, dir := range fs.roots {
@@ -239,7 +267,7 @@ func (fs *FileSearchStream) walkDir(dir string, wg *sync.WaitGroup) {
 			} else {
 				fs.logCh <- Log{
 					FileName: m.Name,
-					FileType: m.Type,
+					FileType: m.ContentType,
 					FilePath: m.Path,
 				}
 				fs.mediaCh <- *m
