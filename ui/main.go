@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/tsmweb/chasam/app"
+	"github.com/tsmweb/chasam/app/fsstream"
 	"github.com/tsmweb/chasam/app/media"
 	"github.com/tsmweb/chasam/pkg/phash"
 	"log"
@@ -19,7 +19,7 @@ func main() {
 		"/home/martins/Desenvolvimento/SPTC/files/test",
 	}
 
-	fstream := app.NewFileSearchStream(roots)
+	fstream := fsstream.NewFileSearchStream(roots)
 
 	go func() {
 		os.Stdin.Read(make([]byte, 1)) // read a single byte
@@ -30,21 +30,13 @@ func main() {
 		OnError(func(err error) {
 			log.Printf("[!] %v\n", err.Error())
 		}).
-		OnLog(func(l app.Log) {
-			//log.Printf("[i] %s - %s\n", l.FileName, l.FileType)
-		}).
-		OnFilter(func(m media.Media) bool {
-			if m.Type == "image" {
-				return true
-			}
-			return false
-		}).
-		OnSearch(searchKeyword).
-		OnSearch(searchSHA1).
-		OnSearch(searchED2K).
-		OnSearch(searchAHash).
-		OnSearch(searchDHash).
-		OnSearch(searchPHash).
+		OnPipe(pipeKeyword).
+		OnPipe(pipeSHA1).
+		OnPipe(pipeED2K).
+		OnPipe(pipeFilter).
+		OnPipe(pipeAHash).
+		OnPipe(pipeDHash).
+		OnPipe(pipePHash).
 		OnMatch(func(m media.Media) {
 			log.Printf("[v] %20s - MATCH\n", m.Name)
 		})
@@ -56,56 +48,63 @@ func main() {
 	panic(errors.New("error"))
 }
 
-func searchKeyword(ctx context.Context, m media.Media) (bool, error) {
+func pipeFilter(ctx context.Context, m media.Media) (fsstream.ResultType, error) {
+	if m.Type == "image" {
+		return fsstream.Next, nil
+	}
+	return fsstream.Skip, nil
+}
+
+func pipeKeyword(ctx context.Context, m media.Media) (fsstream.ResultType, error) {
 	log.Printf("[*] %20s - KEYWORD\n", m.Name)
-	return false, nil
+	return fsstream.Next, nil
 }
 
-func searchSHA1(ctx context.Context, m media.Media) (bool, error) {
-	//if err := m.GenSHA1(); err != nil {
-	//	return false, err
-	//}
+func pipeSHA1(ctx context.Context, m media.Media) (fsstream.ResultType, error) {
+	if err := m.GenSHA1(); err != nil {
+		return fsstream.Skip, err
+	}
 	log.Printf("[*] %20s - SHA1[ %s ]\n", m.Name, m.SHA1)
-	return false, nil
+	return fsstream.Next, nil
 }
 
-func searchED2K(ctx context.Context, m media.Media) (bool, error) {
-	//if err := m.GenED2K(); err != nil {
-	//	return false, err
-	//}
+func pipeED2K(ctx context.Context, m media.Media) (fsstream.ResultType, error) {
+	if err := m.GenED2K(); err != nil {
+		return fsstream.Skip, err
+	}
 	log.Printf("[*] %20s - ED2K[ %s ]\n", m.Name, m.ED2K)
-	return false, nil
+	return fsstream.Next, nil
 }
 
-func searchAHash(ctx context.Context, m media.Media) (bool, error) {
-	//if err := m.GenAHash(); err != nil {
-	//	return false, err
-	//}
+func pipeAHash(ctx context.Context, m media.Media) (fsstream.ResultType, error) {
+	if err := m.GenAHash(); err != nil {
+		return fsstream.Skip, err
+	}
 	for _, h := range m.AHash {
 		log.Printf("[*] %20s - A-HASH[ %s ]\n", m.Name, phash.FormatToHex(h))
 	}
 
-	return false, nil
+	return fsstream.Next, nil
 }
 
-func searchDHash(ctx context.Context, m media.Media) (bool, error) {
-	//if err := m.GenDHash(); err != nil {
-	//	return false, err
-	//}
+func pipeDHash(ctx context.Context, m media.Media) (fsstream.ResultType, error) {
+	if err := m.GenDHash(); err != nil {
+		return fsstream.Skip, err
+	}
 	for _, h := range m.DHash {
 		log.Printf("[*] %20s - D-HASH[ %s ]\n", m.Name, phash.FormatToHex(h))
 	}
 
-	return false, nil
+	return fsstream.Next, nil
 }
 
-func searchPHash(ctx context.Context, m media.Media) (bool, error) {
-	//if err := m.GenPHash(); err != nil {
-	//	return false, err
-	//}
+func pipePHash(ctx context.Context, m media.Media) (fsstream.ResultType, error) {
+	if err := m.GenPHash(); err != nil {
+		return fsstream.Skip, err
+	}
 	for _, h := range m.PHash {
 		log.Printf("[*] %20s - P-HASH[ %s ]\n", m.Name, phash.FormatToHex(h))
 	}
 
-	return true, nil
+	return fsstream.Match, nil
 }
