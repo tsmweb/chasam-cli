@@ -15,18 +15,17 @@ func main() {
 	start := time.Now()
 	log.Println("[>] Start")
 
+	ctx, cancelFun := context.WithCancel(context.Background())
 	roots := []string{
 		"/home/martins/Desenvolvimento/SPTC/files/test",
 	}
 
-	fstream := fsstream.NewFileSearchStream(roots)
-
 	go func() {
 		os.Stdin.Read(make([]byte, 1)) // read a single byte
-		fstream.Stop()
+		cancelFun()
 	}()
 
-	fstream.
+	fsstream.NewFileSearchStream(ctx, roots).
 		OnError(func(err error) {
 			log.Printf("[!] %v\n", err.Error())
 		}).

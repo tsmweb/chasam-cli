@@ -57,30 +57,26 @@ func (l *pipeList) insert(p pipe) {
 }
 
 type FileSearchStream struct {
-	ctx      context.Context
-	cancelFn context.CancelFunc
-	roots    []string
-	pipes    *pipeList
-	semaCh   chan struct{}
-	errorCh  chan error
-	errorFn  func(err error)
-	mediaCh  chan media.Media
-	matchCh  chan media.Media
-	wg       sync.WaitGroup
+	ctx     context.Context
+	roots   []string
+	pipes   *pipeList
+	semaCh  chan struct{}
+	errorCh chan error
+	errorFn func(err error)
+	mediaCh chan media.Media
+	matchCh chan media.Media
+	wg      sync.WaitGroup
 }
 
-func NewFileSearchStream(roots []string) *FileSearchStream {
-	ctx, cancelFunc := context.WithCancel(context.Background())
-
+func NewFileSearchStream(ctx context.Context, roots []string) *FileSearchStream {
 	fs := &FileSearchStream{
-		ctx:      ctx,
-		cancelFn: cancelFunc,
-		roots:    roots,
-		pipes:    new(pipeList),
-		semaCh:   make(chan struct{}, semaphoreMax),
-		errorCh:  make(chan error, backpressure),
-		mediaCh:  make(chan media.Media, backpressure),
-		matchCh:  make(chan media.Media, backpressure),
+		ctx:     ctx,
+		roots:   roots,
+		pipes:   new(pipeList),
+		semaCh:  make(chan struct{}, semaphoreMax),
+		errorCh: make(chan error, backpressure),
+		mediaCh: make(chan media.Media, backpressure),
+		matchCh: make(chan media.Media, backpressure),
 	}
 	fs.init()
 
@@ -126,7 +122,6 @@ func (fs *FileSearchStream) OnPipe(fn FileSearchFunc) *FileSearchStream {
 }
 
 func (fs *FileSearchStream) OnMatch(fn func(m media.Media)) {
-	//defer log.Println("\t[x] OnMatch()")
 	fs.initSearch()
 	go fs.runWalkDir()
 
@@ -136,11 +131,6 @@ func (fs *FileSearchStream) OnMatch(fn func(m media.Media)) {
 
 	close(fs.errorCh)
 	fs.wg.Wait()
-}
-
-func (fs *FileSearchStream) Stop() {
-	fs.cancelFn()
-	close(fs.matchCh)
 }
 
 func (fs *FileSearchStream) initSearch() {
@@ -159,23 +149,27 @@ func (fs *FileSearchStream) initSearch() {
 }
 
 func (fs *FileSearchStream) runSearch(fn FileSearchFunc, outCh chan<- media.Media, inCh <-chan media.Media) {
-	//defer log.Println("\t[x] runSearch()")
-
+loop:
 	for m := range inCh {
-		res, err := fn(fs.ctx, m)
-		if err != nil {
-			fs.errorCh <- err
-			continue
-		}
+		select {
+		case <-fs.ctx.Done():
+			break loop
+		default:
+			res, err := fn(fs.ctx, m)
+			if err != nil {
+				fs.errorCh <- err
+				continue
+			}
 
-		switch res {
-		case Skip:
-			continue
-		case Match:
-			fs.matchCh <- m
-		case Next:
-			if outCh != nil {
-				outCh <- m
+			switch res {
+			case Skip:
+				continue
+			case Match:
+				fs.matchCh <- m
+			case Next:
+				if outCh != nil {
+					outCh <- m
+				}
 			}
 		}
 	}
