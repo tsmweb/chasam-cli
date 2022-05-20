@@ -57,49 +57,34 @@ func GetContentType(out *os.File) (contentType ContentType, err error) {
 	switch _contentType {
 	case ImageGIF.String():
 		contentType = ImageGIF
-
 	case ImageJPEG.String():
 		contentType = ImageJPEG
-
 	case ImagePNG.String():
 		contentType = ImagePNG
-
 	case ImageBMP.String():
 		contentType = ImageBMP
-
 	case ImageWEBP.String():
 		contentType = ImageWEBP
-
 	case ImageTIFF.String():
 		contentType = ImageTIFF
-
 	case VideoMPEG.String():
 		contentType = VideoMPEG
-
 	case VideoMP4.String():
 		contentType = VideoMP4
-
 	case VideoAVI.String():
 		contentType = VideoAVI
-
 	case VideoOGG.String():
 		contentType = VideoOGG
-
 	case VideoWEBM.String():
 		contentType = VideoWEBM
-
 	case VideoWMV.String():
 		contentType = VideoWMV
-
 	case VideoFLV.String():
 		contentType = VideoFLV
-
 	case VideoMKV.String():
 		contentType = VideoMKV
-
 	case VideoMOV.String():
 		contentType = VideoMOV
-
 	default:
 		err = ErrUnsupportedMediaType
 	}
@@ -107,17 +92,17 @@ func GetContentType(out *os.File) (contentType ContentType, err error) {
 	return
 }
 
-func Encode(w io.Writer, m image.Image, t string) (err error) {
+func Encode(w io.Writer, m image.Image, t ContentType) (err error) {
 	switch t {
-	case ImageGIF.String():
+	case ImageGIF:
 		err = gif.Encode(w, m, nil)
-	case ImageJPEG.String():
+	case ImageJPEG:
 		err = jpeg.Encode(w, m, &jpeg.Options{Quality: jpeg.DefaultQuality})
-	case ImagePNG.String():
+	case ImagePNG:
 		err = png.Encode(w, m)
-	case ImageBMP.String():
+	case ImageBMP:
 		err = bmp.Encode(w, m)
-	case ImageTIFF.String():
+	case ImageTIFF:
 		err = tiff.Encode(w, m, nil)
 	default:
 		err = ErrUnsupportedMediaType
@@ -126,19 +111,19 @@ func Encode(w io.Writer, m image.Image, t string) (err error) {
 	return
 }
 
-func Decode(f *os.File, t string) (img image.Image, err error) {
+func Decode(f *os.File, t ContentType) (img image.Image, err error) {
 	switch t {
-	case ImageGIF.String():
+	case ImageGIF:
 		img, err = gif.Decode(f)
-	case ImageJPEG.String():
+	case ImageJPEG:
 		img, err = jpeg.Decode(f)
-	case ImagePNG.String():
+	case ImagePNG:
 		img, err = png.Decode(f)
-	case ImageBMP.String():
+	case ImageBMP:
 		img, err = bmp.Decode(f)
-	case ImageWEBP.String():
+	case ImageWEBP:
 		img, err = webp.Decode(f)
-	case ImageTIFF.String():
+	case ImageTIFF:
 		img, err = tiff.Decode(f)
 	default:
 		err = fmt.Errorf("unrecognized file")

@@ -14,17 +14,17 @@ import (
 
 // Media represents the information of a media and its hash.
 type Media struct {
-	Name        string
-	Path        string
-	Type        string
-	ContentType string
-	ModifiedAt  time.Time
-	ED2K        string
-	SHA1        string
-	AHash       []uint64
-	DHash       []uint64
-	PHash       []uint64
-	WHash       []uint64
+	name        string
+	path        string
+	mediaType   string
+	contentType string
+	modifiedAt  time.Time
+	ed2k        string
+	sha1        string
+	aHash       []uint64
+	dHash       []uint64
+	pHash       []uint64
+	wHash       []uint64
 }
 
 // New creates and returns a new Media instance.
@@ -50,105 +50,154 @@ func New(path string) (*Media, error) {
 	_, name := filepath.Split(info.Name())
 
 	m := new(Media)
-	m.Path = path
-	m.Name = name
-	m.ModifiedAt = info.ModTime()
-	m.Type = strings.Split(contentType.String(), "/")[0]
-	m.ContentType = contentType.String()
+	m.path = path
+	m.name = name
+	m.modifiedAt = info.ModTime()
+	m.mediaType = strings.Split(contentType.String(), "/")[0]
+	m.contentType = contentType.String()
 
 	return m, nil
 }
 
-func (m *Media) GenSHA1() error {
-	f, err := os.Open(m.Path)
+func (m *Media) Name() string {
+	return m.name
+}
+
+func (m *Media) Path() string {
+	return m.path
+}
+
+func (m *Media) Type() string {
+	return m.mediaType
+}
+
+func (m *Media) ContentType() string {
+	return m.contentType
+}
+
+func (m *Media) ModifiedAt() time.Time {
+	return m.modifiedAt
+}
+
+func (m *Media) SHA1() (string, error) {
+	if m.sha1 != "" {
+		return m.sha1, nil
+	}
+
+	f, err := os.Open(m.path)
 	if err != nil {
-		return fmt.Errorf("Media::GenSHA1(%s) | Error: %v", m.Path, err)
+		return "", fmt.Errorf("Media::SHA1(%s) | Error: %v", m.path, err)
 	}
 	defer f.Close()
 
 	h, err := hashutil.HashSHA1(f)
 	if err != nil {
-		return fmt.Errorf("Media::GenSHA1(%s) | Error: %v", m.Path, err)
+		return "", fmt.Errorf("Media::SHA1(%s) | Error: %v", m.path, err)
 	}
-	m.SHA1 = h
+	m.sha1 = h
 
-	return nil
+	return h, nil
 }
 
-func (m *Media) GenED2K() error {
-	f, err := os.Open(m.Path)
+func (m *Media) ED2K() (string, error) {
+	if m.ed2k != "" {
+		return m.ed2k, nil
+	}
+
+	f, err := os.Open(m.path)
 	if err != nil {
-		return fmt.Errorf("Media::GenED2K(%s) | Error: %v", m.Path, err)
+		return "", fmt.Errorf("Media::ED2K(%s) | Error: %v", m.path, err)
 	}
 	defer f.Close()
 
 	h, err := hashutil.HashED2K(f)
 	if err != nil {
-		return fmt.Errorf("Media::GenED2K(%s) | Error: %v", m.Path, err)
+		return "", fmt.Errorf("Media::ED2K(%s) | Error: %v", m.path, err)
 	}
-	m.ED2K = h
+	m.ed2k = h
 
-	return nil
+	return h, nil
 }
 
-func (m *Media) GenAHash() error {
+func (m *Media) AHash() ([]uint64, error) {
+	if m.aHash != nil {
+		return m.aHash, nil
+	}
+
 	img, err := m.getImage()
 	if err != nil {
-		return fmt.Errorf("Media::GenAHash(%s) | Error: %v", m.Path, err)
+		return nil, fmt.Errorf("Media::AHash(%s) | Error: %v", m.path, err)
 	}
 
 	h, err := phash.AverageHash(img)
 	if err != nil {
-		return fmt.Errorf("Media::GenAHash(%s) | Error: %v", m.Path, err)
+		return nil, fmt.Errorf("Media::AHash(%s) | Error: %v", m.path, err)
 	}
+	ah := []uint64{h}
+	m.aHash = ah
 
-	m.AHash = []uint64{h}
-	return nil
+	return ah, nil
 }
 
-func (m *Media) GenDHash() error {
+func (m *Media) DHash() ([]uint64, error) {
+	if m.dHash != nil {
+		return m.dHash, nil
+	}
+
 	img, err := m.getImage()
 	if err != nil {
-		return fmt.Errorf("Media::GenDHash(%s) | Error: %v", m.Path, err)
+		return nil, fmt.Errorf("Media::DifferenceHash(%s) | Error: %v", m.path, err)
 	}
 
 	h, err := phash.DifferenceHash(img)
 	if err != nil {
-		return fmt.Errorf("Media::GenDHash(%s) | Error: %v", m.Path, err)
+		return nil, fmt.Errorf("Media::DifferenceHash(%s) | Error: %v", m.path, err)
 	}
+	dh := []uint64{h}
+	m.dHash = dh
 
-	m.DHash = []uint64{h}
-	return nil
+	return dh, nil
 }
 
-func (m *Media) GenPHash() error {
+func (m *Media) PHash() ([]uint64, error) {
+	if m.pHash != nil {
+		return m.pHash, nil
+	}
+
 	img, err := m.getImage()
 	if err != nil {
-		return fmt.Errorf("Media::GenPHash(%s) | Error: %v", m.Path, err)
+		return nil, fmt.Errorf("Media::PHash(%s) | Error: %v", m.path, err)
 	}
 
 	h, err := phash.PerceptionHash(img)
 	if err != nil {
-		return fmt.Errorf("Media::GenPHash(%s) | Error: %v", m.Path, err)
+		return nil, fmt.Errorf("Media::PHash(%s) | Error: %v", m.path, err)
 	}
+	ph := []uint64{h}
+	m.pHash = ph
 
-	m.PHash = []uint64{h}
-	return nil
+	return ph, nil
 }
 
-func (m *Media) GenWHash() error {
-	m.WHash = []uint64{0}
-	return nil
+func (m *Media) WHash() ([]uint64, error) {
+	if m.wHash != nil {
+		return m.wHash, nil
+	}
+
+	wh := []uint64{0}
+	m.wHash = wh
+
+	return wh, nil
 }
 
 func (m *Media) getImage() (image.Image, error) {
-	f, err := os.Open(m.Path)
+	f, err := os.Open(m.path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	img, err := mediautil.Decode(f, m.ContentType)
+	img, err := mediautil.Decode(f, mediautil.ContentType(m.contentType))
 	if err != nil {
 		return nil, err
 	}

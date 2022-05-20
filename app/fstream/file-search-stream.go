@@ -1,4 +1,4 @@
-package fsstream
+package fstream
 
 import (
 	"context"
@@ -24,10 +24,10 @@ const (
 	Skip
 )
 
-type FileSearchFunc func(ctx context.Context, m media.Media) (ResultType, error)
+type FileSearchFunc func(ctx context.Context, m *media.Media) (ResultType, error)
 
 type pipe struct {
-	ch chan media.Media
+	ch chan *media.Media
 	fn FileSearchFunc
 }
 
@@ -63,8 +63,8 @@ type FileSearchStream struct {
 	semaCh  chan struct{}
 	errorCh chan error
 	errorFn func(err error)
-	mediaCh chan media.Media
-	matchCh chan media.Media
+	mediaCh chan *media.Media
+	matchCh chan *media.Media
 	wg      sync.WaitGroup
 }
 
@@ -75,8 +75,8 @@ func NewFileSearchStream(ctx context.Context, roots []string) *FileSearchStream 
 		pipes:   new(pipeList),
 		semaCh:  make(chan struct{}, semaphoreMax),
 		errorCh: make(chan error, backpressure),
-		mediaCh: make(chan media.Media, backpressure),
-		matchCh: make(chan media.Media, backpressure),
+		mediaCh: make(chan *media.Media, backpressure),
+		matchCh: make(chan *media.Media, backpressure),
 	}
 	fs.init()
 
@@ -107,13 +107,13 @@ func (fs *FileSearchStream) OnError(fn func(err error)) *FileSearchStream {
 	return fs
 }
 
-func (fs *FileSearchStream) OnPipe(fn FileSearchFunc) *FileSearchStream {
-	var ch chan media.Media
+func (fs *FileSearchStream) OnEach(fn FileSearchFunc) *FileSearchStream {
+	var ch chan *media.Media
 
 	if fs.pipes.len == 0 {
 		ch = fs.mediaCh
 	} else {
-		ch = make(chan media.Media, backpressure)
+		ch = make(chan *media.Media, backpressure)
 	}
 
 	fs.pipes.insert(pipe{ch: ch, fn: fn})
@@ -121,7 +121,7 @@ func (fs *FileSearchStream) OnPipe(fn FileSearchFunc) *FileSearchStream {
 	return fs
 }
 
-func (fs *FileSearchStream) OnMatch(fn func(m media.Media)) {
+func (fs *FileSearchStream) OnMatch(fn func(m *media.Media)) {
 	fs.initSearch()
 	go fs.runWalkDir()
 
@@ -148,7 +148,7 @@ func (fs *FileSearchStream) initSearch() {
 	}
 }
 
-func (fs *FileSearchStream) runSearch(fn FileSearchFunc, outCh chan<- media.Media, inCh <-chan media.Media) {
+func (fs *FileSearchStream) runSearch(fn FileSearchFunc, outCh chan<- *media.Media, inCh <-chan *media.Media) {
 loop:
 	for m := range inCh {
 		select {
@@ -213,7 +213,7 @@ func (fs *FileSearchStream) walkDir(dir string, wg *sync.WaitGroup) {
 					fs.errorCh <- err
 				}
 			} else {
-				fs.mediaCh <- *m
+				fs.mediaCh <- m
 			}
 		}
 	}
