@@ -9,4 +9,7 @@ require (
 	golang.org/x/image v0.0.0-20200430140353-33d19683fad8
 )
 
-require github.com/corona10/goimagehash v1.0.3 // indirect
+require (
+	github.com/corona10/goimagehash v1.0.3 // indirect
+	github.com/tsmweb/go-helper-api v1.2.7 // indirect
+)

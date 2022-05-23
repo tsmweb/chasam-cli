@@ -3,29 +3,36 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"github.com/tsmweb/chasam/app/fstream"
 	"github.com/tsmweb/chasam/app/media"
 	"github.com/tsmweb/chasam/pkg/phash"
 	"log"
 	"os"
+	"runtime"
 	"time"
 )
 
+var (
+	cpu = flag.Int("cpu", runtime.NumCPU(), "-cpu=4")
+	dir = flag.String("dir", ".", "-dir=./directory")
+)
+
 func main() {
+	flag.Parse()
+
 	start := time.Now()
 	log.Println("[>] Start")
 
 	ctx, cancelFun := context.WithCancel(context.Background())
-	roots := []string{
-		"/home/martins/Desenvolvimento/SPTC/files/benchmark",
-	}
+	roots := []string{*dir}
 
 	go func() {
 		os.Stdin.Read(make([]byte, 1)) // read a single byte
 		cancelFun()
 	}()
 
-	fstream.NewFileSearchStream(ctx, roots).
+	fstream.NewMediaSearchStream(ctx, roots, *cpu).
 		OnError(func(err error) {
 			log.Printf("[!] %v\n", err.Error())
 		}).
@@ -61,7 +68,8 @@ func main() {
 			log.Printf("[v] %s \n\tSHA1 [ %s ] \n\tED2K [ %s ] \n\tA-HASH [ %s ] "+
 				"\n\tD-HASH [ %s ]\n\tP-HASH [ %s ]\n",
 				m.Name(), hSha1, hEd2k, aHashStr, dHashStr, pHashStr)
-		})
+		}).
+		Run()
 
 	elapsed := time.Since(start)
 	log.Printf("[>] Stop - %s\n", elapsed)

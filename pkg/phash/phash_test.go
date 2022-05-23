@@ -9,8 +9,8 @@ import (
 )
 
 func TestGenerateDiff(t *testing.T) {
-	root := "../../../files/lenna"
-	img, err := loadImage(filepath.Join(root, "lenna.jpg"))
+	root := "../../../files/ambiente"
+	img, err := loadImage(filepath.Join(root, "img-a.jpeg"))
 	if err != nil {
 		t.Fatal(err)
 	}
