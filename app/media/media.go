@@ -23,6 +23,7 @@ type Media struct {
 	sha1        string
 	aHash       []uint64
 	dHash       []uint64
+	dHashV      []uint64
 	pHash       []uint64
 	wHash       []uint64
 }
@@ -146,17 +147,37 @@ func (m *Media) DHash() ([]uint64, error) {
 
 	img, err := m.getImage()
 	if err != nil {
-		return nil, fmt.Errorf("Media::DifferenceHash(%s) | Error: %v", m.path, err)
+		return nil, fmt.Errorf("Media::DHash(%s) | Error: %v", m.path, err)
 	}
 
 	h, err := phash.DifferenceHash(img)
 	if err != nil {
-		return nil, fmt.Errorf("Media::DifferenceHash(%s) | Error: %v", m.path, err)
+		return nil, fmt.Errorf("Media::DHash(%s) | Error: %v", m.path, err)
 	}
 	dh := []uint64{h}
 	m.dHash = dh
 
 	return dh, nil
+}
+
+func (m *Media) DHashV() ([]uint64, error) {
+	if m.dHashV != nil {
+		return m.dHashV, nil
+	}
+
+	img, err := m.getImage()
+	if err != nil {
+		return nil, fmt.Errorf("Media::DHashV(%s) | Error: %v", m.path, err)
+	}
+
+	h, err := phash.DifferenceHashVertical(img)
+	if err != nil {
+		return nil, fmt.Errorf("Media::DHashV(%s) | Error: %v", m.path, err)
+	}
+	dhv := []uint64{h}
+	m.dHashV = dhv
+
+	return dhv, nil
 }
 
 func (m *Media) PHash() ([]uint64, error) {

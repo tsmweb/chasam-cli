@@ -20,7 +20,7 @@ func DifferenceHash(img image.Image) (uint64, error) {
 		return 0, errors.New("image cannot be nil")
 	}
 
-	resized := resize.Resize(9, 8, img, resize.Bilinear)
+	resized := resize.Resize(9, 8, img, resize.Bilinear) // testar resize.Bicubic
 	pixels := imageutil.ConvertToGrayArray(resized)
 	idx := 0
 	var hash uint64
