@@ -10,11 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 )
-
-//var (
-//	semaphoreMax = runtime.NumCPU() * 2
-//)
 
 type ResultType int
 
@@ -57,6 +54,7 @@ func (l *pipeList) insert(p pipe) {
 }
 
 type mediaSearchStream struct {
+	pid      int32
 	ctx      context.Context
 	dir      string
 	pipes    *pipeList
@@ -71,7 +69,10 @@ func (s *mediaSearchStream) init() {
 	// handle error.
 	s.globalWG.Add(1)
 	go func() {
-		defer s.globalWG.Done()
+		defer func() {
+			//log.Printf("[%d] DONE-> errorCh\n", s.pid)
+			s.globalWG.Done()
+		}()
 
 		for err := range s.errorCh {
 			if s.errorFn != nil {
@@ -103,6 +104,7 @@ func (s *mediaSearchStream) onEach(fn FileSearchFunc) *mediaSearchStream {
 }
 
 func (s *mediaSearchStream) onMatch(fn func(m *media.Media)) {
+	//defer log.Printf("[%d] DONE-> onMatch\n", s.pid)
 	s.initSearch()
 	go s.walkDir()
 
@@ -110,6 +112,7 @@ func (s *mediaSearchStream) onMatch(fn func(m *media.Media)) {
 		fn(m)
 	}
 
+	//log.Printf("[%d] CLOSE-> onMatch::errorCh\n", s.pid)
 	close(s.errorCh)
 	s.globalWG.Wait()
 }
@@ -130,39 +133,46 @@ func (s *mediaSearchStream) initSearch() {
 }
 
 func (s *mediaSearchStream) runSearch(fn FileSearchFunc, outCh chan<- *media.Media, inCh <-chan *media.Media) {
-loop:
-	for m := range inCh {
-		select {
-		case <-s.ctx.Done():
-			break loop
-		default:
-			res, err := fn(s.ctx, m)
-			if err != nil {
-				s.errorCh <- err
-				return
-			}
+	//defer log.Printf("[%d] DONE-> runSearch\n", s.pid)
 
-			switch res {
-			case Skip:
-				return
-			case Match:
-				s.matchCh <- m
-			case Next:
-				if outCh != nil {
-					outCh <- m
-				}
+	for m := range inCh {
+		if s.cancelled() {
+			break
+		}
+
+		res, err := fn(s.ctx, m)
+		if err != nil {
+			s.errorCh <- err
+			return
+		}
+
+		switch res {
+		case Skip:
+			return
+		case Match:
+			s.matchCh <- m
+		case Next:
+			if outCh != nil {
+				outCh <- m
 			}
 		}
 	}
 
 	if outCh != nil {
+		//log.Printf("[%d] CLOSE-> runSearch::outCh\n", s.pid)
 		close(outCh)
 	} else {
+		//log.Printf("[%d] CLOSE-> runSearch::matchCh\n", s.pid)
 		close(s.matchCh)
 	}
 }
 
 func (s *mediaSearchStream) walkDir() {
+	//defer log.Printf("[%d] DONE-> walkDir\n", s.pid)
+	if s.cancelled() {
+		return
+	}
+
 	f, err := os.Open(s.dir)
 	if err != nil {
 		s.errorCh <- fmt.Errorf("mediaSearchStream::walkDir(%s) | Error: %v", s.dir, err)
@@ -194,6 +204,7 @@ func (s *mediaSearchStream) walkDir() {
 		}
 	}
 
+	//log.Printf("[%d] CLOSE-> walkDir::mediaCh\n", s.pid)
 	close(s.mediaCh)
 }
 
@@ -222,10 +233,22 @@ type mediaSearchStreamBuilder struct {
 	matchFn func(m *media.Media)
 }
 
-func NewMediaSearchStream(ctx context.Context, roots []string, cpu int) MediaSearchStream {
+var (
+	goPid int32 = 0
+)
+
+func addGoPid(delta int32) int32 {
+	return atomic.AddInt32(&goPid, delta)
+}
+
+func doneGoPid() int32 {
+	return atomic.AddInt32(&goPid, -1)
+}
+
+func NewMediaSearchStream(ctx context.Context, roots []string, cpuSize int) MediaSearchStream {
 	return &mediaSearchStreamBuilder{
 		ctx:    ctx,
-		semaCh: make(chan struct{}, cpu),
+		semaCh: make(chan struct{}, cpuSize),
 		roots:  roots,
 	}
 }
@@ -250,7 +273,6 @@ func (b *mediaSearchStreamBuilder) Run() {
 
 	for _, root := range b.roots {
 		wg.Add(1)
-		root := root
 		go b.walkRoot(root, &wg)
 	}
 
@@ -258,14 +280,27 @@ func (b *mediaSearchStreamBuilder) Run() {
 }
 
 func (b *mediaSearchStreamBuilder) walkRoot(root string, wg *sync.WaitGroup) {
-	defer wg.Done()
+	defer func() {
+		//log.Println("[B] DONE-> walkRoot")
+		wg.Done()
+	}()
 
 	filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
+		if b.cancelled() {
+			return filepath.SkipDir
+		}
+
 		if info.IsDir() {
+			select {
+			case b.semaCh <- struct{}{}: // acquire token
+			case <-b.ctx.Done():
+				return filepath.SkipDir
+			}
+
 			wg.Add(1)
 			go b.searchMedia(path, wg)
 		}
@@ -274,18 +309,15 @@ func (b *mediaSearchStreamBuilder) walkRoot(root string, wg *sync.WaitGroup) {
 }
 
 func (b *mediaSearchStreamBuilder) searchMedia(dir string, wg *sync.WaitGroup) {
-	select {
-	case b.semaCh <- struct{}{}: // acquire token
-	case <-b.ctx.Done():
-		return
-	}
-
 	defer func() {
+		//log.Println("[B] DONE-> searchMedia")
+		doneGoPid()
 		wg.Done()
 		<-b.semaCh // release token
 	}()
 
 	ms := &mediaSearchStream{
+		pid:     addGoPid(1),
 		ctx:     b.ctx,
 		dir:     dir,
 		pipes:   new(pipeList),
@@ -299,4 +331,13 @@ func (b *mediaSearchStreamBuilder) searchMedia(dir string, wg *sync.WaitGroup) {
 		ms.onEach(fn)
 	}
 	ms.onMatch(b.matchFn)
+}
+
+func (b *mediaSearchStreamBuilder) cancelled() bool {
+	select {
+	case <-b.ctx.Done():
+		return true
+	default:
+		return false
+	}
 }

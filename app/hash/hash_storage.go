@@ -20,6 +20,27 @@ const (
 	WHash
 )
 
+func (t Type) String() string {
+	switch t {
+	case SHA1:
+		return "SHA1"
+	case ED2K:
+		return "ED2K"
+	case AHash:
+		return "AHash"
+	case DHash:
+		return "DHash"
+	case DHashV:
+		return "DHashV"
+	case PHash:
+		return "PHash"
+	case WHash:
+		return "WHash"
+	default:
+		return ""
+	}
+}
+
 type Storage struct {
 	hashTable  map[Type]map[string]string
 	pHashTable map[Type]map[uint64]string

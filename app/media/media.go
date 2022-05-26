@@ -12,6 +12,12 @@ import (
 	"time"
 )
 
+type Match struct {
+	Name     string
+	HashType string
+	Distance int
+}
+
 // Media represents the information of a media and its hash.
 type Media struct {
 	name        string
@@ -26,6 +32,7 @@ type Media struct {
 	dHashV      []uint64
 	pHash       []uint64
 	wHash       []uint64
+	match       []Match
 }
 
 // New creates and returns a new Media instance.
@@ -209,6 +216,18 @@ func (m *Media) WHash() ([]uint64, error) {
 	m.wHash = wh
 
 	return wh, nil
+}
+
+func (m *Media) AddMatch(name string, hashType string, distance int) {
+	m.match = append(m.match, Match{
+		Name:     name,
+		HashType: hashType,
+		Distance: distance,
+	})
+}
+
+func (m *Media) Match() []Match {
+	return m.match
 }
 
 func (m *Media) getImage() (image.Image, error) {
