@@ -8,6 +8,19 @@ import (
 	"testing"
 )
 
+func TestAverageHash(t *testing.T) {
+	img, err := loadImage("../../../files/test/Alyson.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hash1, err := AverageHash(img)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("A-HASH: %s\n", FormatToHex(hash1))
+}
+
 func TestGenerateDiff(t *testing.T) {
 	root := "../../../files/ambiente"
 	img, err := loadImage(filepath.Join(root, "img-a.jpeg"))
@@ -83,7 +96,7 @@ func TestGenerateDiff(t *testing.T) {
 	}
 }
 
-func TestDHash(t *testing.T) {
+func TestDifferenceHash(t *testing.T) {
 	img, err := loadImage("../../../files/test/Alyson.jpg")
 	if err != nil {
 		t.Fatal(err)
@@ -93,16 +106,10 @@ func TestDHash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("Meu D-HASH: %s\n", FormatToHex(hash1))
-
-	hash2, err := DifferenceHash_(img)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("Lib D-HASH: %s\n", FormatToHex(hash2))
+	t.Logf("D-HASH: %s\n", FormatToHex(hash1))
 }
 
-func TestDHashVertical(t *testing.T) {
+func TestDifferenceHashVertical(t *testing.T) {
 	img, err := loadImage("../../../files/test/Alyson.jpg")
 	if err != nil {
 		t.Fatal(err)
@@ -115,28 +122,46 @@ func TestDHashVertical(t *testing.T) {
 	t.Logf("Meu DifferenceHashVertical: %s\n", FormatToHex(hash1))
 }
 
-func BenchmarkDHash(b *testing.B) {
+func TestPerceptionHash(t *testing.T) {
 	img, err := loadImage("../../../files/test/Alyson.jpg")
 	if err != nil {
-		b.Fatal(err)
+		t.Fatal(err)
 	}
 
-	for i := 0; i < b.N; i++ {
-		_, err = DifferenceHash(img)
-		if err != nil {
-			b.Fatal(err)
-		}
+	hash1, err := PerceptionHash(img)
+	if err != nil {
+		t.Fatal(err)
 	}
+	t.Logf("P-HASH: %s\n", FormatToHex(hash1))
+
+	hash2, err := PerceptionHash_(img)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("P-HASH-L: %s\n", FormatToHex(hash2))
 }
 
-func BenchmarkDHashVertical(b *testing.B) {
+func TestWaveletHash(t *testing.T) {
+	img, err := loadImage("../../../files/test/Alyson.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hash, err := WaveletHash(img)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("WaveletHash: %v\n", hash)
+}
+
+func BenchmarkAverageHash(b *testing.B) {
 	img, err := loadImage("../../../files/test/Alyson.jpg")
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	for i := 0; i < b.N; i++ {
-		_, err = DifferenceHashVertical(img)
+		_, err = AverageHash(img)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -150,7 +175,21 @@ func BenchmarkDifferenceHash(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		_, err = DifferenceHash_(img)
+		_, err = DifferenceHash(img)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkDifferenceHashVertical(b *testing.B) {
+	img, err := loadImage("../../../files/test/Alyson.jpg")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		_, err = DifferenceHashVertical(img)
 		if err != nil {
 			b.Fatal(err)
 		}

@@ -1,7 +1,7 @@
 package main
 
 /*
-go run main.go --source=/home/martins/Desenvolvimento/SPTC/files/source --target=/home/martins/Desenvolvimento/SPTC/files/benchmark/rotate --hash=p-hash --distance=10 --cpu=4
+go run main.go --source=/home/martins/Desenvolvimento/SPTC/files/source --target=/home/martins/Desenvolvimento/SPTC/files/benchmark/rotate --hash=p-hash --distance=10
 */
 
 import (
@@ -10,10 +10,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/gookit/color"
 	"github.com/tsmweb/chasam/app/fstream"
 	"github.com/tsmweb/chasam/app/hash"
 	"github.com/tsmweb/chasam/app/media"
-	"github.com/tsmweb/chasam/common/pathutil"
 	"github.com/tsmweb/chasam/pkg/progressbar"
 	"os"
 	"os/signal"
@@ -43,7 +43,6 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	go func(ctx context.Context, fn context.CancelFunc) {
 		<-ctx.Done()
-		fmt.Println("\n[>] Parando o processamento")
 		fn()
 	}(ctx, stop)
 
@@ -69,15 +68,10 @@ func main() {
 	}()
 	_csv.Write([]string{"ORIGEM", "ALVO", "ALVO PATH", "TIPO DO HASH", "DISTANCIA DE HAMMING"})
 
-	fmt.Println("[>] Processando...\n")
-
-	totalFiles, err := getTotalFiles()
-	if err != nil {
-		fmt.Printf("[!] Error: %v\n", err.Error())
-	}
+	printBanner()
 
 	var bar progressbar.Bar
-	bar.NewOption(0, totalFiles, "=")
+	bar.NewOption("=")
 
 	countFile := 0
 	go func() {
@@ -106,26 +100,12 @@ func main() {
 	elapsed := time.Since(start)
 	time.Sleep(time.Millisecond * 500)
 
-	fmt.Printf("\n[>] Pesquisa concluída em: %s\n", elapsed)
-	fmt.Printf("[>] Total de arquivos analisados: %d\n", countFile)
-	fmt.Printf("[>] Total de match: %d\n", countMatch)
+	color.Printf("\n[>] Pesquisa concluída em: <green>%s</>\n", elapsed)
+	color.Printf("[>] Total de arquivos analisados: <green>%d</>\n", countFile)
+	color.Printf("[>] Total de match: <green>%d</>\n", countMatch)
+	color.Printf("[>] Arquivo de match: <green>%s</>\n", csvFile.Name())
 
 	//panic(errors.New("error"))
-}
-
-func getTotalFiles() (int64, error) {
-	var total int64
-	roots := strings.Split(*target, ",")
-
-	for _, root := range roots {
-		t, err := pathutil.GetTotalFiles(root)
-		if err != nil {
-			return 0, err
-		}
-		total += t
-	}
-
-	return total, nil
 }
 
 func runMediaSearchStream(ctx context.Context) error {
@@ -284,12 +264,6 @@ func fnEachPHash(_ context.Context, m *media.Media) (fstream.ResultType, error) 
 }
 
 func printMatch(sourceName, targetName, targetPath, hashType string, distHamming int) {
-	//fmt.Printf("\n[*] Origem: %s\n", sourceName)
-	//fmt.Printf("\t- Match: %s\n", targetName)
-	//fmt.Printf("\t- Path: %s\n", targetPath)
-	//fmt.Printf("\t- Tipo do hash: %s\n", hashType)
-	//fmt.Printf("\t- Distância de hamming: %d\n", distHamming)
-
 	_csv.Write([]string{
 		sourceName,
 		targetName,
@@ -297,6 +271,16 @@ func printMatch(sourceName, targetName, targetPath, hashType string, distHamming
 		hashType,
 		strconv.Itoa(distHamming),
 	})
+}
+
+func printBanner() {
+	fmt.Println("###############################################################################")
+	fmt.Printf("#%78s\n", "#")
+	color.Printf("%-35s <yellow>%s</> %36s\n", "#", "ChaSAM", "#")
+	fmt.Printf("#%78s\n", "#")
+	fmt.Println("###############################################################################")
+	color.Println("[>] Para abortar pressione as teclas <red>ctrl+c</>")
+	color.Println("[>] Iniciando a busca...\n")
 }
 
 const templateHelperStr = "\t%-10s \t\t %s\n"
