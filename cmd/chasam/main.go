@@ -1,7 +1,7 @@
 package main
 
 /*
-go run main.go --source=/home/martins/Desenvolvimento/SPTC/files/source --target=/home/martins/Desenvolvimento/SPTC/files/benchmark/rotate --hash=p-hash --distance=10
+go run main.go --source=/home/martins/Desenvolvimento/SPTC/files/source --target=/home/martins/Desenvolvimento/SPTC/files/benchmark/rotate --hash=p-hash --hamming=10
 */
 
 import (
@@ -28,7 +28,7 @@ var (
 	source   = flag.String("source", "", "--source=image/source")
 	target   = flag.String("target", "", "--target=image/target")
 	hashType = flag.String("hash", "d-hash", "--hash=sha1,ed2k,a-hash,d-hash,d-hash-v,p-hash")
-	distance = flag.Int("distance", 10, "--distance=10")
+	hamming  = flag.Int("hamming", 10, "--hamming=10")
 
 	hashStorage  *hash.Storage
 	countFileCh  = make(chan struct{})
@@ -66,7 +66,7 @@ func main() {
 		_csv.Flush()
 		csvFile.Close()
 	}()
-	_csv.Write([]string{"ORIGEM", "ALVO", "ALVO PATH", "TIPO DO HASH", "DISTANCIA DE HAMMING"})
+	_csv.Write([]string{"ORIGEM", "ALVO", "ALVO PATH", "TIPO DO HASH", "HAMMING"})
 
 	printBanner()
 
@@ -220,7 +220,7 @@ func fnEachAHash(_ context.Context, m *media.Media) (fstream.ResultType, error) 
 	if err != nil {
 		return fstream.Skip, err
 	}
-	if dist, src := hashStorage.FindByPerceptualHash(hash.AHash, h[0], *distance); dist != -1 {
+	if dist, src := hashStorage.FindByPerceptualHash(hash.AHash, h[0], *hamming); dist != -1 {
 		m.AddMatch(src, hash.AHash.String(), dist)
 		return fstream.Match, nil
 	}
@@ -232,7 +232,7 @@ func fnEachDHash(_ context.Context, m *media.Media) (fstream.ResultType, error) 
 	if err != nil {
 		return fstream.Skip, err
 	}
-	if dist, src := hashStorage.FindByPerceptualHash(hash.DHash, h[0], *distance); dist != -1 {
+	if dist, src := hashStorage.FindByPerceptualHash(hash.DHash, h[0], *hamming); dist != -1 {
 		m.AddMatch(src, hash.DHash.String(), dist)
 		return fstream.Match, nil
 	}
@@ -244,7 +244,7 @@ func fnEachDHashV(_ context.Context, m *media.Media) (fstream.ResultType, error)
 	if err != nil {
 		return fstream.Skip, err
 	}
-	if dist, src := hashStorage.FindByPerceptualHash(hash.DHashV, h[0], *distance); dist != -1 {
+	if dist, src := hashStorage.FindByPerceptualHash(hash.DHashV, h[0], *hamming); dist != -1 {
 		m.AddMatch(src, hash.DHashV.String(), dist)
 		return fstream.Match, nil
 	}
@@ -256,7 +256,7 @@ func fnEachPHash(_ context.Context, m *media.Media) (fstream.ResultType, error) 
 	if err != nil {
 		return fstream.Skip, err
 	}
-	if dist, src := hashStorage.FindByPerceptualHash(hash.PHash, h[0], *distance); dist != -1 {
+	if dist, src := hashStorage.FindByPerceptualHash(hash.PHash, h[0], *hamming); dist != -1 {
 		m.AddMatch(src, hash.PHash.String(), dist)
 		return fstream.Match, nil
 	}
@@ -286,12 +286,12 @@ func printBanner() {
 const templateHelperStr = "\t%-10s \t\t %s\n"
 
 func printHelper() {
-	fmt.Println("Uso: chasam --source=images/source --target=images/target-1,images/target-2 --hash=d-hash,d-hash-v --distance=10")
+	fmt.Println("Uso: chasam --source=images/source --target=images/target-1,images/target-2 --hash=d-hash,d-hash-v --hamming=10")
 	fmt.Println("Realiza uma pesquisa de imagens através da comparação de hashs.")
 
 	fmt.Printf("\nArgumentos.\n")
-	fmt.Printf(templateHelperStr, "--cpu", "defini o número de núcleos da cpu para o processamento dos hash")
-	fmt.Printf(templateHelperStr, "--distance", "distância limite entre dois hashs perceptivos")
+	fmt.Printf(templateHelperStr, "--cpu", "definir o número de núcleos da cpu para o processamento dos hashs")
+	fmt.Printf(templateHelperStr, "--hamming", "distância limite entre dois hashs perceptivos")
 	fmt.Printf(templateHelperStr, "--hash", "tipo do hash "+
 		"(pode ser informado mais de um tipo separados por vírgula)")
 
@@ -305,13 +305,13 @@ func printHelper() {
 		"(calcula a diferença entre um pixel e seu vizinho da direita, seguindo o degrade horizontal)")
 
 	fmt.Printf(templateHelperStr, "\td-hash-v", "hash de diferença vertical "+
-		"(calcula a diferença entre um pixel se seu vizinho abaixo, seguindo o degrade vertical)")
+		"(calcula a diferença entre um pixel e seu vizinho abaixo, seguindo o degrade vertical)")
 
 	fmt.Printf(templateHelperStr, "\tp-hash", "perceptual hash (calcula aplicando uma transformada discreta de cosseno)")
 
 	fmt.Printf(templateHelperStr, "\tw-hash", "wavelet hash (calcula aplicando uma transformada wavelet bidimensional)")
 
-	fmt.Printf(templateHelperStr, "--source", "diretório de origem com as imagens/vídeos a serem pesquisadas")
+	fmt.Printf(templateHelperStr, "--source", "diretório de origem com as imagens/vídeos a serem pesquisados")
 
 	fmt.Printf(templateHelperStr, "--target", "diretório alvo onde será realizada a pesquisa por imagens/vídeos "+
 		"(pode ser informado mais de um diretório separados por vírgula)")

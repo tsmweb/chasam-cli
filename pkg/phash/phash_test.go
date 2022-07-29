@@ -123,22 +123,33 @@ func TestDifferenceHashVertical(t *testing.T) {
 }
 
 func TestPerceptionHash(t *testing.T) {
-	img, err := loadImage("../../../files/test/Alyson.jpg")
+	img, err := loadImage("../../../files/test/lenna.jpg")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	hash1, err := PerceptionHash(img)
+	hash1, err := PerceptionHash_(img)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("P-HASH: %s\n", FormatToHex(hash1))
 
-	hash2, err := PerceptionHash_(img)
+	img2, err := loadImage("../../../files/test/lenna-blur.jpg")
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("P-HASH-L: %s\n", FormatToHex(hash2))
+
+	hash2, err := PerceptionHash_(img2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("P-HASH2: %s\n", FormatToHex(hash2))
+
+	dh, err := Distance(hash1, hash2)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("HAMMING: %d\n", dh)
 }
 
 func TestWaveletHash(t *testing.T) {
@@ -190,6 +201,34 @@ func BenchmarkDifferenceHashVertical(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		_, err = DifferenceHashVertical(img)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkPerceptualHash(b *testing.B) {
+	img, err := loadImage("../../../files/test/lenna.jpg")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		_, err = PerceptionHash(img)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkPerceptualHashLib(b *testing.B) {
+	img, err := loadImage("../../../files/test/lenna.jpg")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for i := 0; i < b.N; i++ {
+		_, err = PerceptionHash_(img)
 		if err != nil {
 			b.Fatal(err)
 		}

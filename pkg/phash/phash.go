@@ -97,6 +97,31 @@ func DifferenceHashVertical(img image.Image) (uint64, error) {
 	return hash, nil
 }
 
+func DifferenceHashDiagonal(img image.Image) (uint64, error) {
+	if img == nil {
+		return 0, errors.New("image cannot be nil")
+	}
+
+	w, h := 9, 9
+	resized := resize.Resize(uint(w), uint(h), img, resize.Bilinear) // testar resize.Bicubic
+	pixels := imgutil.ConvertToGrayArray(resized)
+	idx := 0
+	var hash uint64
+
+	y := 0
+	x := 0
+	for i := 0; i < 64; i++ {
+		if pixels[y][x] < pixels[y+1][x+1] {
+			hash |= 1 << uint(64-idx-1)
+		}
+		y++
+		x++
+		idx++
+	}
+
+	return hash, nil
+}
+
 // PerceptionHash function returns a hash computation of perception hash vertically.
 // Implementation follows
 // https://www.hackerfactor.com/blog/index.php?/archives/432-Looks-Like-It.html
