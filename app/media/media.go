@@ -4,9 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/tsmweb/chasam/app/hash"
-	"github.com/tsmweb/chasam/common/hashutil"
 	"github.com/tsmweb/chasam/common/mediautil"
-	"github.com/tsmweb/chasam/pkg/phash"
 	"image"
 	"os"
 	"path/filepath"
@@ -154,7 +152,7 @@ func (m *Media) WHash() uint64 {
 }
 
 func (m *Media) setSHA1(f *os.File) error {
-	h, err := hashutil.HashSHA1(f)
+	h, err := hash.Sha1Hash(f)
 	if err != nil {
 		return fmt.Errorf("Media::setSHA1(%s) | Error: %v", m.path, err)
 	}
@@ -163,7 +161,7 @@ func (m *Media) setSHA1(f *os.File) error {
 }
 
 func (m *Media) setED2K(f *os.File) error {
-	h, err := hashutil.HashED2K(f)
+	h, err := hash.Ed2kHash(f)
 	if err != nil {
 		return fmt.Errorf("Media::setED2K(%s) | Error: %v", m.path, err)
 	}
@@ -172,7 +170,7 @@ func (m *Media) setED2K(f *os.File) error {
 }
 
 func (m *Media) setAHash(img image.Image) error {
-	h, err := phash.AverageHash(img)
+	h, err := hash.AverageHash(img)
 	if err != nil {
 		return fmt.Errorf("Media::setAHash(%s) | Error: %v", m.path, err)
 	}
@@ -181,7 +179,7 @@ func (m *Media) setAHash(img image.Image) error {
 }
 
 func (m *Media) setDHash(img image.Image) error {
-	h, err := phash.DifferenceHash(img)
+	h, err := hash.DifferenceHash(img)
 	if err != nil {
 		return fmt.Errorf("Media::setDHash(%s) | Error: %v", m.path, err)
 	}
@@ -190,7 +188,7 @@ func (m *Media) setDHash(img image.Image) error {
 }
 
 func (m *Media) setDHashV(img image.Image) error {
-	h, err := phash.DifferenceHashVertical(img)
+	h, err := hash.DifferenceHashVertical(img)
 	if err != nil {
 		return fmt.Errorf("Media::setDHashV(%s) | Error: %v", m.path, err)
 	}
@@ -199,7 +197,7 @@ func (m *Media) setDHashV(img image.Image) error {
 }
 
 func (m *Media) setPHash(img image.Image) error {
-	h, err := phash.PerceptionHash(img)
+	h, err := hash.PerceptionHash(img)
 	if err != nil {
 		return fmt.Errorf("Media::setPHash(%s) | Error: %v", m.path, err)
 	}

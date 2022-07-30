@@ -13,7 +13,6 @@ import (
 	"github.com/gookit/color"
 	"github.com/tsmweb/chasam/app/fstream"
 	"github.com/tsmweb/chasam/app/hash"
-	"github.com/tsmweb/chasam/app/hash/storage"
 	"github.com/tsmweb/chasam/app/media"
 	"github.com/tsmweb/chasam/pkg/progressbar"
 	"os"
@@ -31,9 +30,10 @@ var (
 	hashType = flag.String("hash", "d-hash", "--hash=sha1,ed2k,a-hash,d-hash,d-hash-v,p-hash")
 	hamming  = flag.Int("hamming", 10, "--hamming=10")
 
-	hashStorage  *storage.Storage
-	countFileCh  = make(chan struct{})
-	countMatchCh = make(chan struct{})
+	provider      = CreateProvider()
+	repositoryMem media.Repository
+	countFileCh   = make(chan struct{})
+	countMatchCh  = make(chan struct{})
 
 	_csv *csv.Writer
 )
@@ -113,11 +113,11 @@ func runMediaSearchStream(ctx context.Context) error {
 	roots := strings.Split(*target, ",")
 	hashTypes := makeHashTypes()
 
-	_hashStorage, err := storage.NewStorage(*source, hashTypes)
+	_repositoryMem, err := provider.MediaRepositoryMem(*source, hashTypes)
 	if err != nil {
 		return err
 	}
-	hashStorage = _hashStorage
+	repositoryMem = _repositoryMem
 
 	msstream := fstream.NewMediaSearchStream(ctx, roots, hashTypes, *cpu).
 		OnError(func(err error) {
@@ -195,7 +195,7 @@ func fnEachFilter(_ context.Context, m *media.Media) (fstream.ResultType, error)
 func fnEachSHA1(_ context.Context, m *media.Media) (fstream.ResultType, error) {
 	h := m.SHA1()
 
-	if src := hashStorage.FindByHash(hash.SHA1, h); src != "-1" {
+	if src := repositoryMem.FindByHash(hash.SHA1, h); src != "-1" {
 		m.AddMatch(src, hash.SHA1.String(), 0)
 		return fstream.Match, nil
 	}
@@ -205,7 +205,7 @@ func fnEachSHA1(_ context.Context, m *media.Media) (fstream.ResultType, error) {
 func fnEachED2K(_ context.Context, m *media.Media) (fstream.ResultType, error) {
 	h := m.ED2K()
 
-	if src := hashStorage.FindByHash(hash.ED2K, h); src != "-1" {
+	if src := repositoryMem.FindByHash(hash.ED2K, h); src != "-1" {
 		m.AddMatch(src, hash.ED2K.String(), 0)
 		return fstream.Match, nil
 	}
@@ -215,7 +215,7 @@ func fnEachED2K(_ context.Context, m *media.Media) (fstream.ResultType, error) {
 func fnEachAHash(_ context.Context, m *media.Media) (fstream.ResultType, error) {
 	h := m.AHash()
 
-	if dist, src := hashStorage.FindByPerceptualHash(hash.AHash, h, *hamming); dist != -1 {
+	if dist, src := repositoryMem.FindByPerceptualHash(hash.AHash, h, *hamming); dist != -1 {
 		m.AddMatch(src, hash.AHash.String(), dist)
 		return fstream.Match, nil
 	}
@@ -225,7 +225,7 @@ func fnEachAHash(_ context.Context, m *media.Media) (fstream.ResultType, error) 
 func fnEachDHash(_ context.Context, m *media.Media) (fstream.ResultType, error) {
 	h := m.DHash()
 
-	if dist, src := hashStorage.FindByPerceptualHash(hash.DHash, h, *hamming); dist != -1 {
+	if dist, src := repositoryMem.FindByPerceptualHash(hash.DHash, h, *hamming); dist != -1 {
 		m.AddMatch(src, hash.DHash.String(), dist)
 		return fstream.Match, nil
 	}
@@ -235,7 +235,7 @@ func fnEachDHash(_ context.Context, m *media.Media) (fstream.ResultType, error) 
 func fnEachDHashV(_ context.Context, m *media.Media) (fstream.ResultType, error) { // Search by DHashV
 	h := m.DHashV()
 
-	if dist, src := hashStorage.FindByPerceptualHash(hash.DHashV, h, *hamming); dist != -1 {
+	if dist, src := repositoryMem.FindByPerceptualHash(hash.DHashV, h, *hamming); dist != -1 {
 		m.AddMatch(src, hash.DHashV.String(), dist)
 		return fstream.Match, nil
 	}
@@ -245,7 +245,7 @@ func fnEachDHashV(_ context.Context, m *media.Media) (fstream.ResultType, error)
 func fnEachPHash(_ context.Context, m *media.Media) (fstream.ResultType, error) { // Search by PHash
 	h := m.PHash()
 
-	if dist, src := hashStorage.FindByPerceptualHash(hash.PHash, h, *hamming); dist != -1 {
+	if dist, src := repositoryMem.FindByPerceptualHash(hash.PHash, h, *hamming); dist != -1 {
 		m.AddMatch(src, hash.PHash.String(), dist)
 		return fstream.Match, nil
 	}

@@ -1,15 +1,44 @@
-package phash
+package hash
 
 import (
 	"github.com/tsmweb/chasam/common/mediautil"
 	"image"
 	"os"
-	"path/filepath"
 	"testing"
 )
 
+func TestSha1Hash(t *testing.T) {
+	f, err := os.Open("../../test/img.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	t.Log(f.Name())
+
+	h, err := Sha1Hash(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(h)
+}
+
+func TestEd2kHash(t *testing.T) {
+	f, err := os.Open("../../test/img.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	h, err := Ed2kHash(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(h)
+}
+
 func TestAverageHash(t *testing.T) {
-	img, err := loadImage("../../../files/test/Alyson.jpg")
+	img, err := loadImage("../../test/img.jpg")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -21,83 +50,8 @@ func TestAverageHash(t *testing.T) {
 	t.Logf("A-HASH: %s\n", FormatToHex(hash1))
 }
 
-func TestGenerateDiff(t *testing.T) {
-	root := "../../../files/ambiente"
-	img, err := loadImage(filepath.Join(root, "img-a.jpeg"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	dHash, err := DifferenceHash(img)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	dHashV, err := DifferenceHashVertical(img)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	dHashA := []uint64{dHash, dHashV}
-
-	files, err := os.ReadDir(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, f := range files {
-		if f.IsDir() {
-			continue
-		}
-
-		img, err = loadImage(filepath.Join(root, f.Name()))
-		if err != nil {
-			t.Log(err.Error())
-			continue
-		}
-
-		// D-HASH
-		dh, err := DifferenceHash(img)
-		if err != nil {
-			t.Log(err.Error())
-			continue
-		}
-
-		dis, err := Distance(dHash, dh)
-		if err != nil {
-			t.Log(err.Error())
-			continue
-		}
-		t.Logf("DHash: %s - %d\n", f.Name(), dis)
-
-		// D-HASH-VERTICAL
-		dhv, err := DifferenceHashVertical(img)
-		if err != nil {
-			t.Log(err.Error())
-			continue
-		}
-
-		dis, err = Distance(dHashV, dhv)
-		if err != nil {
-			t.Log(err.Error())
-			continue
-		}
-		t.Logf("DHashV: %s - %d\n", f.Name(), dis)
-
-		// D-HASH-ALL
-		dha := []uint64{dh, dhv}
-
-		dis, err = ExtDistance(dHashA, dha)
-		if err != nil {
-			t.Log(err.Error())
-			continue
-		}
-		t.Logf("DHashA: %s - %d\n", f.Name(), dis)
-	}
-}
-
 func TestDifferenceHash(t *testing.T) {
-	img, err := loadImage("../../../files/test/Alyson.jpg")
+	img, err := loadImage("../../test/img.jpg")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +64,7 @@ func TestDifferenceHash(t *testing.T) {
 }
 
 func TestDifferenceHashVertical(t *testing.T) {
-	img, err := loadImage("../../../files/test/Alyson.jpg")
+	img, err := loadImage("../../test/img.jpg")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +77,7 @@ func TestDifferenceHashVertical(t *testing.T) {
 }
 
 func TestPerceptionHash(t *testing.T) {
-	img, err := loadImage("../../../files/test/lenna.jpg")
+	img, err := loadImage("../../test/img.jpg")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,27 +87,10 @@ func TestPerceptionHash(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("P-HASH: %s\n", FormatToHex(hash1))
-
-	img2, err := loadImage("../../../files/test/lenna-blur.jpg")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	hash2, err := PerceptionHash(img2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("P-HASH2: %s\n", FormatToHex(hash2))
-
-	dh, err := Distance(hash1, hash2)
-	if err != nil {
-		t.Error(err)
-	}
-	t.Logf("HAMMING: %d\n", dh)
 }
 
 func TestWaveletHash(t *testing.T) {
-	img, err := loadImage("../../../files/test/Alyson.jpg")
+	img, err := loadImage("../../test/img.jpg")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +103,7 @@ func TestWaveletHash(t *testing.T) {
 }
 
 func BenchmarkAverageHash(b *testing.B) {
-	img, err := loadImage("../../../files/test/Alyson.jpg")
+	img, err := loadImage("../../test/img.jpg")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -180,7 +117,7 @@ func BenchmarkAverageHash(b *testing.B) {
 }
 
 func BenchmarkDifferenceHash(b *testing.B) {
-	img, err := loadImage("../../../files/test/Alyson.jpg")
+	img, err := loadImage("../../test/img.jpg")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -194,7 +131,7 @@ func BenchmarkDifferenceHash(b *testing.B) {
 }
 
 func BenchmarkDifferenceHashVertical(b *testing.B) {
-	img, err := loadImage("../../../files/test/Alyson.jpg")
+	img, err := loadImage("../../test/img.jpg")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -208,7 +145,7 @@ func BenchmarkDifferenceHashVertical(b *testing.B) {
 }
 
 func BenchmarkPerceptualHash(b *testing.B) {
-	img, err := loadImage("../../../files/test/lenna.jpg")
+	img, err := loadImage("../../test/img.jpg")
 	if err != nil {
 		b.Fatal(err)
 	}

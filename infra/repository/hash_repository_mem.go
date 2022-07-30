@@ -1,48 +1,47 @@
-package storage
+package repository
 
 import (
 	"errors"
 	"github.com/tsmweb/chasam/app/hash"
 	"github.com/tsmweb/chasam/app/media"
-	"github.com/tsmweb/chasam/pkg/phash"
 	"os"
 	"path/filepath"
 )
 
-type Storage struct {
+type mediaRepositoryMem struct {
 	hashTable  map[hash.Type]map[string]string
 	pHashTable map[hash.Type]map[uint64]string
 }
 
-func (s *Storage) AppendHash(hashType hash.Type, hashValue string, fileName string) {
-	hashMedia, ok := s.hashTable[hashType]
+func (r *mediaRepositoryMem) AppendHash(hashType hash.Type, hashValue string, fileName string) {
+	hashMedia, ok := r.hashTable[hashType]
 	if !ok {
 		hashMedia = make(map[string]string)
-		s.hashTable[hashType] = hashMedia
+		r.hashTable[hashType] = hashMedia
 	}
 	hashMedia[hashValue] = fileName
 }
 
-func (s *Storage) FindByHash(hashType hash.Type, hashValue string) string {
-	v, ok := s.hashTable[hashType][hashValue]
+func (r *mediaRepositoryMem) FindByHash(hashType hash.Type, hashValue string) string {
+	v, ok := r.hashTable[hashType][hashValue]
 	if ok {
 		return v
 	}
 	return "-1"
 }
 
-func (s *Storage) AppendPerceptualHash(hashType hash.Type, hashValue uint64, fileName string) {
-	hashMedia, ok := s.pHashTable[hashType]
+func (r *mediaRepositoryMem) AppendPerceptualHash(hashType hash.Type, hashValue uint64, fileName string) {
+	hashMedia, ok := r.pHashTable[hashType]
 	if !ok {
 		hashMedia = make(map[uint64]string)
-		s.pHashTable[hashType] = hashMedia
+		r.pHashTable[hashType] = hashMedia
 	}
 	hashMedia[hashValue] = fileName
 }
 
-func (s *Storage) FindByPerceptualHash(hashType hash.Type, hashValue uint64, distance int) (int, string) {
-	for lHash, fName := range s.pHashTable[hashType] {
-		dist, err := phash.Distance(lHash, hashValue)
+func (r *mediaRepositoryMem) FindByPerceptualHash(hashType hash.Type, hashValue uint64, distance int) (int, string) {
+	for lHash, fName := range r.pHashTable[hashType] {
+		dist, err := hash.Distance(lHash, hashValue)
 		if err != nil {
 			return -1, ""
 		}
@@ -55,7 +54,7 @@ func (s *Storage) FindByPerceptualHash(hashType hash.Type, hashValue uint64, dis
 	return -1, ""
 }
 
-func NewStorage(dir string, hashTypes []hash.Type) (*Storage, error) {
+func NewMediaRepositoryMem(dir string, hashTypes []hash.Type) (media.Repository, error) {
 	f, err := os.Open(dir)
 	if err != nil {
 		return nil, err
@@ -66,7 +65,7 @@ func NewStorage(dir string, hashTypes []hash.Type) (*Storage, error) {
 		return nil, errors.New("images/videos not found")
 	}
 
-	storage := &Storage{
+	repository := &mediaRepositoryMem{
 		hashTable:  make(map[hash.Type]map[string]string),
 		pHashTable: make(map[hash.Type]map[uint64]string),
 	}
@@ -86,27 +85,27 @@ func NewStorage(dir string, hashTypes []hash.Type) (*Storage, error) {
 			switch typeHash {
 			case hash.SHA1:
 				if h := m.SHA1(); h != "" {
-					storage.AppendHash(hash.SHA1, h, m.Name())
+					repository.AppendHash(hash.SHA1, h, m.Name())
 				}
 			case hash.ED2K:
 				if h := m.ED2K(); h != "" {
-					storage.AppendHash(hash.ED2K, h, m.Name())
+					repository.AppendHash(hash.ED2K, h, m.Name())
 				}
 			case hash.AHash:
 				if h := m.AHash(); h > 0 {
-					storage.AppendPerceptualHash(hash.AHash, h, m.Name())
+					repository.AppendPerceptualHash(hash.AHash, h, m.Name())
 				}
 			case hash.DHash:
 				if h := m.DHash(); h > 0 {
-					storage.AppendPerceptualHash(hash.DHash, h, m.Name())
+					repository.AppendPerceptualHash(hash.DHash, h, m.Name())
 				}
 			case hash.DHashV:
 				if h := m.DHashV(); h > 0 {
-					storage.AppendPerceptualHash(hash.DHashV, h, m.Name())
+					repository.AppendPerceptualHash(hash.DHashV, h, m.Name())
 				}
 			case hash.PHash:
 				if h := m.PHash(); h > 0 {
-					storage.AppendPerceptualHash(hash.PHash, h, m.Name())
+					repository.AppendPerceptualHash(hash.PHash, h, m.Name())
 				}
 			case hash.WHash:
 				return nil, errors.New("w-hash not implemented")
@@ -116,5 +115,5 @@ func NewStorage(dir string, hashTypes []hash.Type) (*Storage, error) {
 		}
 	}
 
-	return storage, nil
+	return repository, nil
 }

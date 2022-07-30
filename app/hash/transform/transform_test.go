@@ -1,4 +1,4 @@
-package imgutil
+package transform
 
 import (
 	"fmt"
@@ -10,14 +10,14 @@ import (
 )
 
 func TestConvertToGray(t *testing.T) {
-	img := loadImage(t, "../../../../files/test/lenna.jpg")
+	img := loadImage(t, "../../../test/img.jpg")
 
 	imgGray := ConvertToGray(img)
 	saveImage(t, imgGray)
 }
 
 func TestConvertToGrayArray(t *testing.T) {
-	img := loadImage(t, "../../../../files/test/lenna-gray.jpg")
+	img := loadImage(t, "../../../test/img-gray.jpg")
 	resized := resize.Resize(9, 8, img, resize.Bilinear)
 	pixels := ConvertToGrayArray(resized)
 
@@ -29,6 +29,8 @@ func TestConvertToGrayArray(t *testing.T) {
 }
 
 func loadImage(t *testing.T, uri string) image.Image {
+	t.Helper()
+
 	f, err := os.Open(uri)
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +47,7 @@ func loadImage(t *testing.T, uri string) image.Image {
 func saveImage(t *testing.T, img image.Image) {
 	t.Helper()
 
-	nf, err := os.Create("../../../../files/test/lenna-gray.jpg")
+	nf, err := os.Create("../../../test/img-gray.jpg")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,15 +1,85 @@
-package phash
+package hash
 
 import (
+	"bufio"
+	"crypto/sha1"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/nfnt/resize"
-	"github.com/tsmweb/chasam/pkg/phash/imgutil"
+	"github.com/tsmweb/chasam/app/hash/transform"
+	"github.com/tsmweb/chasam/pkg/ed2k"
 	"image"
+	"io"
 	"math/bits"
+	"os"
 )
+
+type Type int
+
+const (
+	SHA1 Type = iota
+	ED2K
+	AHash
+	DHash
+	DHashV
+	PHash
+	WHash
+)
+
+func (t Type) String() string {
+	switch t {
+	case SHA1:
+		return "SHA1"
+	case ED2K:
+		return "ED2K"
+	case AHash:
+		return "AHash"
+	case DHash:
+		return "DHash"
+	case DHashV:
+		return "DHashV"
+	case PHash:
+		return "PHash"
+	case WHash:
+		return "WHash"
+	default:
+		return ""
+	}
+}
+
+func Sha1Hash(f *os.File) (string, error) {
+	rd := bufio.NewReader(f)
+	sh := sha1.New()
+	_, err := rd.WriteTo(sh)
+	if err != nil {
+		return "", err
+	}
+	h := fmt.Sprintf("%x", sh.Sum(nil))
+
+	if _, err = f.Seek(0, io.SeekStart); err != nil {
+		return h, err
+	}
+
+	return h, nil
+}
+
+func Ed2kHash(f *os.File) (string, error) {
+	rd := bufio.NewReader(f)
+	sh := ed2k.New()
+	_, err := rd.WriteTo(sh)
+	if err != nil {
+		return "", err
+	}
+	h := fmt.Sprintf("%x", sh.Sum(nil))
+
+	if _, err = f.Seek(0, io.SeekStart); err != nil {
+		return h, err
+	}
+
+	return h, nil
+}
 
 // AverageHash function returns a hash computation of average hash vertically.
 // Implementation follows
@@ -21,7 +91,7 @@ func AverageHash(img image.Image) (uint64, error) {
 
 	w, h := 8, 8
 	resized := resize.Resize(uint(w), uint(h), img, resize.Bilinear)
-	pixels := imgutil.ConvertToGrayArray(resized)
+	pixels := transform.ConvertToGrayArray(resized)
 	flatPixels := [64]float64{}
 	sum := 0.0
 
@@ -54,7 +124,7 @@ func DifferenceHash(img image.Image) (uint64, error) {
 
 	w, h := 9, 8
 	resized := resize.Resize(uint(w), uint(h), img, resize.Bilinear) // testar resize.Bicubic
-	pixels := imgutil.ConvertToGrayArray(resized)
+	pixels := transform.ConvertToGrayArray(resized)
 	idx := 0
 	var hash uint64
 
@@ -80,7 +150,7 @@ func DifferenceHashVertical(img image.Image) (uint64, error) {
 
 	w, h := 8, 9
 	resized := resize.Resize(uint(w), uint(h), img, resize.Bilinear)
-	pixels := imgutil.ConvertToGrayArray(resized)
+	pixels := transform.ConvertToGrayArray(resized)
 	idx := 0
 	var hash uint64
 
@@ -103,7 +173,7 @@ func DifferenceHashDiagonal(img image.Image) (uint64, error) {
 
 	w, h := 9, 9
 	resized := resize.Resize(uint(w), uint(h), img, resize.Bilinear) // testar resize.Bicubic
-	pixels := imgutil.ConvertToGrayArray(resized)
+	pixels := transform.ConvertToGrayArray(resized)
 	idx := 0
 	var hash uint64
 
@@ -131,8 +201,8 @@ func PerceptionHash(img image.Image) (uint64, error) {
 
 	w, h := 32, 32
 	resized := resize.Resize(uint(w), uint(h), img, resize.Bilinear)
-	pixels := imgutil.ConvertToGrayArray(resized)
-	dct := imgutil.DCT2D(pixels, w, h)
+	pixels := transform.ConvertToGrayArray(resized)
+	dct := transform.DCT2D(pixels, w, h)
 
 	// calculate the average of the dct.
 	w, h = 8, 8
