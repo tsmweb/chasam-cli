@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/corona10/goimagehash"
 	"github.com/nfnt/resize"
 	"github.com/tsmweb/chasam/pkg/phash/imgutil"
 	"image"
@@ -23,7 +22,7 @@ func AverageHash(img image.Image) (uint64, error) {
 	w, h := 8, 8
 	resized := resize.Resize(uint(w), uint(h), img, resize.Bilinear)
 	pixels := imgutil.ConvertToGrayArray(resized)
-	flatPixels := make([]float64, w*h)
+	flatPixels := [64]float64{}
 	sum := 0.0
 
 	for y := 0; y < h; y++ {
@@ -137,7 +136,7 @@ func PerceptionHash(img image.Image) (uint64, error) {
 
 	// calculate the average of the dct.
 	w, h = 8, 8
-	flatDct := make([]float64, w*h)
+	flatDct := [64]float64{} // 8x8
 	sum := 0.0
 
 	for y := 0; y < h; y++ {
@@ -162,14 +161,6 @@ func PerceptionHash(img image.Image) (uint64, error) {
 	}
 
 	return hash, nil
-}
-
-func PerceptionHash_(img image.Image) (uint64, error) {
-	h, err := goimagehash.PerceptionHash(img)
-	if err != nil {
-		return 0, err
-	}
-	return h.GetHash(), err
 }
 
 func WaveletHash(img image.Image) (uint64, error) {

@@ -13,6 +13,7 @@ import (
 	"github.com/gookit/color"
 	"github.com/tsmweb/chasam/app/fstream"
 	"github.com/tsmweb/chasam/app/hash"
+	"github.com/tsmweb/chasam/app/hash/storage"
 	"github.com/tsmweb/chasam/app/media"
 	"github.com/tsmweb/chasam/pkg/progressbar"
 	"os"
@@ -30,7 +31,7 @@ var (
 	hashType = flag.String("hash", "d-hash", "--hash=sha1,ed2k,a-hash,d-hash,d-hash-v,p-hash")
 	hamming  = flag.Int("hamming", 10, "--hamming=10")
 
-	hashStorage  *hash.Storage
+	hashStorage  *storage.Storage
 	countFileCh  = make(chan struct{})
 	countMatchCh = make(chan struct{})
 
@@ -112,13 +113,13 @@ func runMediaSearchStream(ctx context.Context) error {
 	roots := strings.Split(*target, ",")
 	hashTypes := makeHashTypes()
 
-	_hashStorage, err := hash.NewStorage(*source, hashTypes)
+	_hashStorage, err := storage.NewStorage(*source, hashTypes)
 	if err != nil {
 		return err
 	}
 	hashStorage = _hashStorage
 
-	msstream := fstream.NewMediaSearchStream(ctx, roots, *cpu).
+	msstream := fstream.NewMediaSearchStream(ctx, roots, hashTypes, *cpu).
 		OnError(func(err error) {
 			fmt.Printf("[!] Error: %v\n", err.Error())
 		}).
@@ -192,10 +193,8 @@ func fnEachFilter(_ context.Context, m *media.Media) (fstream.ResultType, error)
 }
 
 func fnEachSHA1(_ context.Context, m *media.Media) (fstream.ResultType, error) {
-	h, err := m.SHA1()
-	if err != nil {
-		return fstream.Skip, err
-	}
+	h := m.SHA1()
+
 	if src := hashStorage.FindByHash(hash.SHA1, h); src != "-1" {
 		m.AddMatch(src, hash.SHA1.String(), 0)
 		return fstream.Match, nil
@@ -204,10 +203,8 @@ func fnEachSHA1(_ context.Context, m *media.Media) (fstream.ResultType, error) {
 }
 
 func fnEachED2K(_ context.Context, m *media.Media) (fstream.ResultType, error) {
-	h, err := m.ED2K()
-	if err != nil {
-		return fstream.Skip, err
-	}
+	h := m.ED2K()
+
 	if src := hashStorage.FindByHash(hash.ED2K, h); src != "-1" {
 		m.AddMatch(src, hash.ED2K.String(), 0)
 		return fstream.Match, nil
@@ -216,11 +213,9 @@ func fnEachED2K(_ context.Context, m *media.Media) (fstream.ResultType, error) {
 }
 
 func fnEachAHash(_ context.Context, m *media.Media) (fstream.ResultType, error) {
-	h, err := m.AHash()
-	if err != nil {
-		return fstream.Skip, err
-	}
-	if dist, src := hashStorage.FindByPerceptualHash(hash.AHash, h[0], *hamming); dist != -1 {
+	h := m.AHash()
+
+	if dist, src := hashStorage.FindByPerceptualHash(hash.AHash, h, *hamming); dist != -1 {
 		m.AddMatch(src, hash.AHash.String(), dist)
 		return fstream.Match, nil
 	}
@@ -228,11 +223,9 @@ func fnEachAHash(_ context.Context, m *media.Media) (fstream.ResultType, error) 
 }
 
 func fnEachDHash(_ context.Context, m *media.Media) (fstream.ResultType, error) {
-	h, err := m.DHash()
-	if err != nil {
-		return fstream.Skip, err
-	}
-	if dist, src := hashStorage.FindByPerceptualHash(hash.DHash, h[0], *hamming); dist != -1 {
+	h := m.DHash()
+
+	if dist, src := hashStorage.FindByPerceptualHash(hash.DHash, h, *hamming); dist != -1 {
 		m.AddMatch(src, hash.DHash.String(), dist)
 		return fstream.Match, nil
 	}
@@ -240,11 +233,9 @@ func fnEachDHash(_ context.Context, m *media.Media) (fstream.ResultType, error) 
 }
 
 func fnEachDHashV(_ context.Context, m *media.Media) (fstream.ResultType, error) { // Search by DHashV
-	h, err := m.DHashV()
-	if err != nil {
-		return fstream.Skip, err
-	}
-	if dist, src := hashStorage.FindByPerceptualHash(hash.DHashV, h[0], *hamming); dist != -1 {
+	h := m.DHashV()
+
+	if dist, src := hashStorage.FindByPerceptualHash(hash.DHashV, h, *hamming); dist != -1 {
 		m.AddMatch(src, hash.DHashV.String(), dist)
 		return fstream.Match, nil
 	}
@@ -252,11 +243,9 @@ func fnEachDHashV(_ context.Context, m *media.Media) (fstream.ResultType, error)
 }
 
 func fnEachPHash(_ context.Context, m *media.Media) (fstream.ResultType, error) { // Search by PHash
-	h, err := m.PHash()
-	if err != nil {
-		return fstream.Skip, err
-	}
-	if dist, src := hashStorage.FindByPerceptualHash(hash.PHash, h[0], *hamming); dist != -1 {
+	h := m.PHash()
+
+	if dist, src := hashStorage.FindByPerceptualHash(hash.PHash, h, *hamming); dist != -1 {
 		m.AddMatch(src, hash.PHash.String(), dist)
 		return fstream.Match, nil
 	}

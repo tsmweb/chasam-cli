@@ -128,7 +128,7 @@ func TestPerceptionHash(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hash1, err := PerceptionHash_(img)
+	hash1, err := PerceptionHash(img)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestPerceptionHash(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hash2, err := PerceptionHash_(img2)
+	hash2, err := PerceptionHash(img2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,20 +215,6 @@ func BenchmarkPerceptualHash(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		_, err = PerceptionHash(img)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func BenchmarkPerceptualHashLib(b *testing.B) {
-	img, err := loadImage("../../../files/test/lenna.jpg")
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	for i := 0; i < b.N; i++ {
-		_, err = PerceptionHash_(img)
 		if err != nil {
 			b.Fatal(err)
 		}

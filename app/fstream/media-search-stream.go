@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/tsmweb/chasam/app/hash"
 	"github.com/tsmweb/chasam/app/media"
 	"github.com/tsmweb/chasam/common/mediautil"
 	"io/fs"
@@ -54,15 +55,16 @@ func (l *pipeList) insert(p pipe) {
 }
 
 type mediaSearchStream struct {
-	pid      int32
-	ctx      context.Context
-	dir      string
-	pipes    *pipeList
-	errorCh  chan error
-	errorFn  func(err error)
-	mediaCh  chan *media.Media
-	matchCh  chan *media.Media
-	globalWG sync.WaitGroup
+	pid       int32
+	ctx       context.Context
+	dir       string
+	hashTypes []hash.Type
+	pipes     *pipeList
+	errorCh   chan error
+	errorFn   func(err error)
+	mediaCh   chan *media.Media
+	matchCh   chan *media.Media
+	globalWG  sync.WaitGroup
 }
 
 func (s *mediaSearchStream) init() {
@@ -194,7 +196,7 @@ func (s *mediaSearchStream) walkDir() {
 			continue
 		}
 
-		m, err := media.New(filepath.Join(s.dir, entry.Name()))
+		m, err := media.New(filepath.Join(s.dir, entry.Name()), s.hashTypes)
 		if err != nil {
 			if !errors.Is(err, mediautil.ErrUnsupportedMediaType) {
 				s.errorCh <- err
@@ -225,12 +227,13 @@ type MediaSearchStream interface {
 }
 
 type mediaSearchStreamBuilder struct {
-	ctx     context.Context
-	semaCh  chan struct{}
-	roots   []string
-	errorFn func(err error)
-	eachFn  []FileSearchFunc
-	matchFn func(m *media.Media)
+	ctx       context.Context
+	semaCh    chan struct{}
+	roots     []string
+	hashTypes []hash.Type
+	errorFn   func(err error)
+	eachFn    []FileSearchFunc
+	matchFn   func(m *media.Media)
 }
 
 var (
@@ -245,11 +248,12 @@ func doneGoPid() int32 {
 	return atomic.AddInt32(&goPid, -1)
 }
 
-func NewMediaSearchStream(ctx context.Context, roots []string, cpuSize int) MediaSearchStream {
+func NewMediaSearchStream(ctx context.Context, roots []string, hashTypes []hash.Type, cpuSize int) MediaSearchStream {
 	return &mediaSearchStreamBuilder{
-		ctx:    ctx,
-		semaCh: make(chan struct{}, cpuSize),
-		roots:  roots,
+		ctx:       ctx,
+		semaCh:    make(chan struct{}, cpuSize),
+		roots:     roots,
+		hashTypes: hashTypes,
 	}
 }
 
@@ -317,13 +321,14 @@ func (b *mediaSearchStreamBuilder) searchMedia(dir string, wg *sync.WaitGroup) {
 	}()
 
 	ms := &mediaSearchStream{
-		pid:     addGoPid(1),
-		ctx:     b.ctx,
-		dir:     dir,
-		pipes:   new(pipeList),
-		errorCh: make(chan error),
-		mediaCh: make(chan *media.Media),
-		matchCh: make(chan *media.Media),
+		pid:       addGoPid(1),
+		ctx:       b.ctx,
+		dir:       dir,
+		hashTypes: b.hashTypes,
+		pipes:     new(pipeList),
+		errorCh:   make(chan error),
+		mediaCh:   make(chan *media.Media),
+		matchCh:   make(chan *media.Media),
 	}
 	ms.init()
 	ms.onError(b.errorFn)

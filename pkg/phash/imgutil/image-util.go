@@ -13,9 +13,7 @@ func ConvertToGray(img image.Image) image.Image {
 
 	for y := 0; y < bounds.Max.Y; y++ {
 		for x := 0; x < bounds.Max.X; x++ {
-			colorPixel := img.At(x, y)
-			r, g, b, _ := colorPixel.RGBA()
-			luminosity := 0.299*float64(r>>8) + 0.587*float64(g>>8) + 0.114*float64(b>>8)
+			luminosity := pixelToGray(img.At(x, y).RGBA())
 			pixel := color.Gray{Y: uint8(luminosity)}
 			newImg.Set(x, y, pixel)
 		}
@@ -25,6 +23,17 @@ func ConvertToGray(img image.Image) image.Image {
 }
 
 func ConvertToGrayArray(img image.Image) [][]float64 {
+	switch it := img.(type) {
+	case *image.YCbCr:
+		return pixelToGrayYCbCR(it)
+	case *image.RGBA:
+		return pixelToGrayRGBA(it)
+	default:
+		return pixelToGrayDefault(it)
+	}
+}
+
+func pixelToGrayYCbCR(img *image.YCbCr) [][]float64 {
 	bounds := img.Bounds()
 	w, h := bounds.Max.X-bounds.Min.X, bounds.Max.Y-bounds.Min.Y
 	pixels := make([][]float64, h)
@@ -32,13 +41,45 @@ func ConvertToGrayArray(img image.Image) [][]float64 {
 	for y := range pixels {
 		pixels[y] = make([]float64, w)
 		for x := range pixels[y] {
-			r, g, b, _ := img.At(x, y).RGBA()
-			lum := 0.299*float64(r>>8) + 0.587*float64(g>>8) + 0.114*float64(b>>8)
-			pixels[y][x] = lum
+			pixels[y][x] = pixelToGray(img.YCbCrAt(x, y).RGBA())
 		}
 	}
 
 	return pixels
+}
+
+func pixelToGrayRGBA(img *image.RGBA) [][]float64 {
+	bounds := img.Bounds()
+	w, h := bounds.Max.X-bounds.Min.X, bounds.Max.Y-bounds.Min.Y
+	pixels := make([][]float64, h)
+
+	for y := range pixels {
+		pixels[y] = make([]float64, w)
+		for x := range pixels[y] {
+			pixels[y][x] = pixelToGray(img.At(x, y).RGBA())
+		}
+	}
+
+	return pixels
+}
+
+func pixelToGrayDefault(img image.Image) [][]float64 {
+	bounds := img.Bounds()
+	w, h := bounds.Max.X-bounds.Min.X, bounds.Max.Y-bounds.Min.Y
+	pixels := make([][]float64, h)
+
+	for y := range pixels {
+		pixels[y] = make([]float64, w)
+		for x := range pixels[y] {
+			pixels[y][x] = pixelToGray(img.At(x, y).RGBA())
+		}
+	}
+
+	return pixels
+}
+
+func pixelToGray(r, g, b, a uint32) float64 {
+	return 0.299*float64(r/257) + 0.587*float64(g/257) + 0.114*float64(b/256)
 }
 
 // DCT1D function returns result of DCT-II.
