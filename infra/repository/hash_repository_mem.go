@@ -76,7 +76,7 @@ func NewMediaRepositoryMem(dir string, hashTypes []hash.Type) (media.Repository,
 		}
 
 		path := filepath.Join(dir, entry.Name())
-		m, err := media.New(path, hashTypes)
+		m, err := media.NewMedia(path, hashTypes)
 		if err != nil {
 			return nil, err
 		}

@@ -50,6 +50,10 @@ func (t Type) String() string {
 }
 
 func Sha1Hash(f *os.File) (string, error) {
+	if err := seekStart(f); err != nil {
+		return "", err
+	}
+
 	rd := bufio.NewReader(f)
 	sh := sha1.New()
 	_, err := rd.WriteTo(sh)
@@ -58,14 +62,18 @@ func Sha1Hash(f *os.File) (string, error) {
 	}
 	h := fmt.Sprintf("%x", sh.Sum(nil))
 
-	if _, err = f.Seek(0, io.SeekStart); err != nil {
-		return h, err
+	if err = seekStart(f); err != nil {
+		return "", err
 	}
 
 	return h, nil
 }
 
 func Ed2kHash(f *os.File) (string, error) {
+	if err := seekStart(f); err != nil {
+		return "", err
+	}
+
 	rd := bufio.NewReader(f)
 	sh := ed2k.New()
 	_, err := rd.WriteTo(sh)
@@ -74,11 +82,16 @@ func Ed2kHash(f *os.File) (string, error) {
 	}
 	h := fmt.Sprintf("%x", sh.Sum(nil))
 
-	if _, err = f.Seek(0, io.SeekStart); err != nil {
-		return h, err
+	if err = seekStart(f); err != nil {
+		return "", err
 	}
 
 	return h, nil
+}
+
+func seekStart(f *os.File) error {
+	_, err := f.Seek(0, io.SeekStart)
+	return err
 }
 
 // AverageHash function returns a hash computation of average hash vertically.

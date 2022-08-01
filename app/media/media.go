@@ -35,11 +35,11 @@ type Media struct {
 	match       []Match
 }
 
-// New creates and returns a new Media instance.
-func New(path string, hashTypes []hash.Type) (*Media, error) {
+// NewMedia creates and returns a new Media instance.
+func NewMedia(path string, hashTypes []hash.Type) (*Media, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("Media::New(%s) | Error: %v", path, err)
+		return nil, fmt.Errorf("Media::NewMedia(%s) | Error: %v", path, err)
 	}
 	defer file.Close()
 
@@ -52,7 +52,7 @@ func New(path string, hashTypes []hash.Type) (*Media, error) {
 	// get file information.
 	info, err := file.Stat()
 	if err != nil {
-		return nil, fmt.Errorf("Media::New(%s) | Error: %v", path, err)
+		return nil, fmt.Errorf("Media::NewMedia(%s) | Error: %v", path, err)
 	}
 
 	_, name := filepath.Split(info.Name())
@@ -64,9 +64,15 @@ func New(path string, hashTypes []hash.Type) (*Media, error) {
 	m.mediaType = strings.Split(contentType.String(), "/")[0]
 	m.contentType = contentType.String()
 
-	img, err := mediautil.Decode(file, mediautil.ContentType(m.contentType))
-	if err != nil {
-		return nil, err
+	var img image.Image
+	getImg := func() image.Image {
+		if img == nil {
+			img, err = mediautil.Decode(file, mediautil.ContentType(m.contentType))
+			if err != nil {
+				return nil
+			}
+		}
+		return img
 	}
 
 	for _, h := range hashTypes {
@@ -80,19 +86,19 @@ func New(path string, hashTypes []hash.Type) (*Media, error) {
 				return nil, err
 			}
 		case hash.AHash:
-			if err = m.setAHash(img); err != nil {
+			if err = m.setAHash(getImg()); err != nil {
 				return nil, err
 			}
 		case hash.DHash:
-			if err = m.setDHash(img); err != nil {
+			if err = m.setDHash(getImg()); err != nil {
 				return nil, err
 			}
 		case hash.DHashV:
-			if err = m.setDHashV(img); err != nil {
+			if err = m.setDHashV(getImg()); err != nil {
 				return nil, err
 			}
 		case hash.PHash:
-			if err = m.setPHash(img); err != nil {
+			if err = m.setPHash(getImg()); err != nil {
 				return nil, err
 			}
 		default:
@@ -192,7 +198,7 @@ func (m *Media) setDHashV(img image.Image) error {
 	if err != nil {
 		return fmt.Errorf("Media::setDHashV(%s) | Error: %v", m.path, err)
 	}
-	m.dHash = h
+	m.dHashV = h
 	return nil
 }
 

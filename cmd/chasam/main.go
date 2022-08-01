@@ -1,17 +1,15 @@
 package main
 
 /*
-go run main.go --source=/home/martins/Desenvolvimento/SPTC/files/source --target=/home/martins/Desenvolvimento/SPTC/files/benchmark/rotate --hash=p-hash --hamming=10
+ go run main.go di.go --source=/home/martins/Downloads/images/search --target=/home/martins/Downloads/images/benchmark --hash=p-hash --hamming=10
 */
 
 import (
 	"context"
 	"encoding/csv"
-	"errors"
 	"flag"
 	"fmt"
 	"github.com/gookit/color"
-	"github.com/tsmweb/chasam/app/fstream"
 	"github.com/tsmweb/chasam/app/hash"
 	"github.com/tsmweb/chasam/app/media"
 	"github.com/tsmweb/chasam/pkg/progressbar"
@@ -30,10 +28,12 @@ var (
 	hashType = flag.String("hash", "d-hash", "--hash=sha1,ed2k,a-hash,d-hash,d-hash-v,p-hash")
 	hamming  = flag.Int("hamming", 10, "--hamming=10")
 
-	provider      = CreateProvider()
-	repositoryMem media.Repository
-	countFileCh   = make(chan struct{})
-	countMatchCh  = make(chan struct{})
+	_hashMap     map[hash.Type]bool
+	_hashArray   []hash.Type
+	provider     = CreateProvider()
+	_repository  media.Repository
+	countFileCh  = make(chan struct{})
+	countMatchCh = make(chan struct{})
 
 	_csv *csv.Writer
 )
@@ -94,7 +94,7 @@ func main() {
 
 	start := time.Now()
 
-	if err := runMediaSearchStream(ctx); err != nil {
+	if err := runMediaSearch(ctx); err != nil {
 		fmt.Printf("[!] Error: %v\n", err.Error())
 	}
 
@@ -106,150 +106,130 @@ func main() {
 	color.Printf("[>] Total de match: <green>%d</>\n", countMatch)
 	color.Printf("[>] Arquivo de match: <green>%s</>\n", csvFile.Name())
 
-	//panic(errors.New("error"))
+	panic(fmt.Errorf("%s", "error goroutines"))
 }
 
-func runMediaSearchStream(ctx context.Context) error {
+func runMediaSearch(ctx context.Context) error {
 	roots := strings.Split(*target, ",")
-	hashTypes := makeHashTypes()
+	_hashArray, _hashMap = makeHashTypes()
 
-	_repositoryMem, err := provider.MediaRepositoryMem(*source, hashTypes)
+	repo, err := provider.MediaRepositoryMem(*source, _hashArray)
 	if err != nil {
 		return err
 	}
-	repositoryMem = _repositoryMem
+	_repository = repo
 
-	msstream := fstream.NewMediaSearchStream(ctx, roots, hashTypes, *cpu).
-		OnError(func(err error) {
-			fmt.Printf("[!] Error: %v\n", err.Error())
-		}).
-		OnEach(fnEachFilter).
-		OnMatch(func(m *media.Media) {
-			for _, match := range m.Match() {
-				printMatch(match.Name, m.Name(), m.Path(), match.HashType, match.Distance)
-			}
-
-			countMatchCh <- struct{}{}
-		})
-
-	for _, h := range hashTypes {
-		switch h {
-		case hash.SHA1:
-			msstream.OnEach(fnEachSHA1)
-		case hash.ED2K:
-			msstream.OnEach(fnEachED2K)
-		case hash.AHash:
-			msstream.OnEach(fnEachAHash)
-		case hash.DHash:
-			msstream.OnEach(fnEachDHash)
-		case hash.DHashV:
-			msstream.OnEach(fnEachDHashV)
-		case hash.PHash:
-			msstream.OnEach(fnEachPHash)
-		default:
-			return errors.New("hash not found")
-		}
-	}
-
-	msstream.Run()
+	s := media.NewSearch(
+		ctx,
+		roots,
+		_hashArray,
+		onError,
+		onSearch,
+		onMatch,
+		*cpu)
+	s.Run()
 
 	close(countFileCh)
 	close(countMatchCh)
 	return nil
 }
 
-func makeHashTypes() []hash.Type {
-	var hashTypes []hash.Type
-	_hashTypes := strings.Split(*hashType, ",")
+func makeHashTypes() ([]hash.Type, map[hash.Type]bool) {
+	hashMap := make(map[hash.Type]bool)
+	var hashArray []hash.Type
+	hTypes := strings.Split(*hashType, ",")
 
-	for _, ht := range _hashTypes {
+	for _, ht := range hTypes {
 		switch strings.ToLower(ht) {
 		case "sha1":
-			hashTypes = append(hashTypes, hash.SHA1)
+			hashArray = append(hashArray, hash.SHA1)
+			hashMap[hash.SHA1] = true
 		case "ed2k":
-			hashTypes = append(hashTypes, hash.ED2K)
+			hashArray = append(hashArray, hash.ED2K)
+			hashMap[hash.ED2K] = true
 		case "a-hash":
-			hashTypes = append(hashTypes, hash.AHash)
+			hashArray = append(hashArray, hash.AHash)
+			hashMap[hash.AHash] = true
 		case "d-hash":
-			hashTypes = append(hashTypes, hash.DHash)
+			hashArray = append(hashArray, hash.DHash)
+			hashMap[hash.DHash] = true
 		case "d-hash-v":
-			hashTypes = append(hashTypes, hash.DHashV)
+			hashArray = append(hashArray, hash.DHashV)
+			hashMap[hash.DHashV] = true
 		case "p-hash":
-			hashTypes = append(hashTypes, hash.PHash)
+			hashArray = append(hashArray, hash.PHash)
+			hashMap[hash.PHash] = true
 		case "w-hash":
-			hashTypes = append(hashTypes, hash.WHash)
+			hashArray = append(hashArray, hash.WHash)
+			hashMap[hash.WHash] = true
 		}
 	}
 
-	return hashTypes
+	return hashArray, hashMap
 }
 
-func fnEachFilter(_ context.Context, m *media.Media) (fstream.ResultType, error) {
-	if m.Type() == "image" {
-		countFileCh <- struct{}{}
-		return fstream.Next, nil
-	}
-	return fstream.Skip, nil
+func onError(_ context.Context, err error) {
+	fmt.Fprintf(os.Stderr, "[!] Error: %v\n", err.Error())
 }
 
-func fnEachSHA1(_ context.Context, m *media.Media) (fstream.ResultType, error) {
-	h := m.SHA1()
-
-	if src := repositoryMem.FindByHash(hash.SHA1, h); src != "-1" {
-		m.AddMatch(src, hash.SHA1.String(), 0)
-		return fstream.Match, nil
+func onSearch(_ context.Context, m *media.Media) (bool, error) {
+	if m.Type() != "image" {
+		return false, nil
 	}
-	return fstream.Next, nil
+
+	countFileCh <- struct{}{}
+
+	if _, ok := _hashMap[hash.SHA1]; ok {
+		if src := _repository.FindByHash(hash.SHA1, m.SHA1()); src != "-1" {
+			m.AddMatch(src, hash.SHA1.String(), 0)
+			return true, nil
+		}
+	}
+
+	if _, ok := _hashMap[hash.ED2K]; ok {
+		if src := _repository.FindByHash(hash.ED2K, m.ED2K()); src != "-1" {
+			m.AddMatch(src, hash.ED2K.String(), 0)
+			return true, nil
+		}
+	}
+
+	if _, ok := _hashMap[hash.AHash]; ok {
+		if dist, src := _repository.FindByPerceptualHash(hash.AHash, m.AHash(), *hamming); dist != -1 {
+			m.AddMatch(src, hash.AHash.String(), dist)
+			return true, nil
+		}
+	}
+
+	if _, ok := _hashMap[hash.DHash]; ok {
+		if dist, src := _repository.FindByPerceptualHash(hash.DHash, m.DHash(), *hamming); dist != -1 {
+			m.AddMatch(src, hash.DHash.String(), dist)
+			return true, nil
+		}
+	}
+
+	if _, ok := _hashMap[hash.DHashV]; ok {
+		if dist, src := _repository.FindByPerceptualHash(hash.DHashV, m.DHashV(), *hamming); dist != -1 {
+			m.AddMatch(src, hash.DHashV.String(), dist)
+			return true, nil
+		}
+	}
+
+	if _, ok := _hashMap[hash.PHash]; ok {
+		if dist, src := _repository.FindByPerceptualHash(hash.PHash, m.PHash(), *hamming); dist != -1 {
+			m.AddMatch(src, hash.PHash.String(), dist)
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
-func fnEachED2K(_ context.Context, m *media.Media) (fstream.ResultType, error) {
-	h := m.ED2K()
-
-	if src := repositoryMem.FindByHash(hash.ED2K, h); src != "-1" {
-		m.AddMatch(src, hash.ED2K.String(), 0)
-		return fstream.Match, nil
+func onMatch(_ context.Context, m *media.Media) {
+	for _, match := range m.Match() {
+		printMatch(match.Name, m.Name(), m.Path(), match.HashType, match.Distance)
 	}
-	return fstream.Next, nil
-}
 
-func fnEachAHash(_ context.Context, m *media.Media) (fstream.ResultType, error) {
-	h := m.AHash()
-
-	if dist, src := repositoryMem.FindByPerceptualHash(hash.AHash, h, *hamming); dist != -1 {
-		m.AddMatch(src, hash.AHash.String(), dist)
-		return fstream.Match, nil
-	}
-	return fstream.Next, nil
-}
-
-func fnEachDHash(_ context.Context, m *media.Media) (fstream.ResultType, error) {
-	h := m.DHash()
-
-	if dist, src := repositoryMem.FindByPerceptualHash(hash.DHash, h, *hamming); dist != -1 {
-		m.AddMatch(src, hash.DHash.String(), dist)
-		return fstream.Match, nil
-	}
-	return fstream.Next, nil
-}
-
-func fnEachDHashV(_ context.Context, m *media.Media) (fstream.ResultType, error) { // Search by DHashV
-	h := m.DHashV()
-
-	if dist, src := repositoryMem.FindByPerceptualHash(hash.DHashV, h, *hamming); dist != -1 {
-		m.AddMatch(src, hash.DHashV.String(), dist)
-		return fstream.Match, nil
-	}
-	return fstream.Next, nil
-}
-
-func fnEachPHash(_ context.Context, m *media.Media) (fstream.ResultType, error) { // Search by PHash
-	h := m.PHash()
-
-	if dist, src := repositoryMem.FindByPerceptualHash(hash.PHash, h, *hamming); dist != -1 {
-		m.AddMatch(src, hash.PHash.String(), dist)
-		return fstream.Match, nil
-	}
-	return fstream.Next, nil
+	countMatchCh <- struct{}{}
 }
 
 func printMatch(sourceName, targetName, targetPath, hashType string, distHamming int) {

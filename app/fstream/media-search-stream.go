@@ -196,7 +196,7 @@ func (s *mediaSearchStream) walkDir() {
 			continue
 		}
 
-		m, err := media.New(filepath.Join(s.dir, entry.Name()), s.hashTypes)
+		m, err := media.NewMedia(filepath.Join(s.dir, entry.Name()), s.hashTypes)
 		if err != nil {
 			if !errors.Is(err, mediautil.ErrUnsupportedMediaType) {
 				s.errorCh <- err
@@ -218,6 +218,8 @@ func (s *mediaSearchStream) cancelled() bool {
 		return false
 	}
 }
+
+/*====================================================================*/
 
 type MediaSearchStream interface {
 	OnError(fn func(err error)) MediaSearchStream
