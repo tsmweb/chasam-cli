@@ -110,7 +110,8 @@ func main() {
 }
 
 func runMediaSearch(ctx context.Context) error {
-	roots := strings.Split(*target, ",")
+	root := *target
+	poolSize := *cpu
 	_hashArray, _hashMap = makeHashTypes()
 
 	repo, err := provider.MediaRepositoryMem(*source, _hashArray)
@@ -121,12 +122,12 @@ func runMediaSearch(ctx context.Context) error {
 
 	s := media.NewSearch(
 		ctx,
-		roots,
+		root,
 		_hashArray,
 		onError,
 		onSearch,
 		onMatch,
-		*cpu)
+		poolSize)
 	s.Run()
 
 	close(countFileCh)
@@ -255,7 +256,7 @@ func printBanner() {
 const templateHelperStr = "\t%-10s \t\t %s\n"
 
 func printHelper() {
-	fmt.Println("Uso: chasam --source=images/source --target=images/target-1,images/target-2 --hash=d-hash,d-hash-v --hamming=10")
+	fmt.Println("Uso: chasam --source=images/source --target=images/target --hash=d-hash,d-hash-v --hamming=10")
 	fmt.Println("Realiza uma pesquisa de imagens através da comparação de hashs.")
 
 	fmt.Printf("\nArgumentos.\n")
@@ -282,6 +283,5 @@ func printHelper() {
 
 	fmt.Printf(templateHelperStr, "--source", "diretório de origem com as imagens/vídeos a serem pesquisados")
 
-	fmt.Printf(templateHelperStr, "--target", "diretório alvo onde será realizada a pesquisa por imagens/vídeos "+
-		"(pode ser informado mais de um diretório separados por vírgula)")
+	fmt.Printf(templateHelperStr, "--target", "diretório alvo onde será realizada a pesquisa por imagens/vídeos")
 }

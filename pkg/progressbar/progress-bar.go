@@ -3,7 +3,6 @@ package progressbar
 import (
 	"fmt"
 	"github.com/gookit/color"
-	"runtime"
 )
 
 type Bar struct {
@@ -32,8 +31,8 @@ func (b *Bar) Play(cur int64) {
 		}
 	}
 
-	color.Printf("\r[<cyan>%-41s</>] ANALISADO [ <cyan>%d</> ]  MATCH [ <green>%d</> ] GOROUTINES [ <red>%d</> ]",
-		b.rate+">", cur, b.totalMatch, runtime.NumGoroutine())
+	color.Printf("\r[<cyan>%-41s</>] ANALISADO [ <cyan>%d</> ]  MATCH [ <green>%d</> ]",
+		b.rate+">", cur, b.totalMatch)
 }
 
 func (b *Bar) Match() {

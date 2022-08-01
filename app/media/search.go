@@ -16,7 +16,7 @@ type OnMatch func(ctx context.Context, m *Media)
 
 type Search struct {
 	ctx       context.Context
-	roots     []string
+	root      string
 	hashTypes []hash.Type
 
 	semaphoreCh chan struct{}
@@ -31,7 +31,7 @@ type Search struct {
 
 func NewSearch(
 	ctx context.Context,
-	roots []string,
+	root string,
 	hashTypes []hash.Type,
 	onError OnError,
 	onSearch OnSearch,
@@ -40,7 +40,7 @@ func NewSearch(
 ) *Search {
 	searchMedia := &Search{
 		ctx:         ctx,
-		roots:       roots,
+		root:        root,
 		hashTypes:   hashTypes,
 		semaphoreCh: make(chan struct{}, poolSize),
 		errorCh:     make(chan error),
@@ -60,9 +60,7 @@ func (s *Search) Run() {
 	wg.Add(1)
 	go s.processMedia(&wg)
 
-	for _, root := range s.roots {
-		s.walkRoot(root)
-	}
+	s.walkRoot(s.root)
 
 	wg.Wait()
 }
@@ -133,10 +131,7 @@ func (s *Search) walkRoot(root string) {
 }
 
 func (s *Search) handleMedia(path string, wg *sync.WaitGroup) {
-	defer func() {
-		//fmt.Fprintln(os.Stderr, "[MD] handleMedia() - done")
-		wg.Done()
-	}()
+	defer wg.Done()
 
 	m, err := NewMedia(path, s.hashTypes)
 	if err != nil {
@@ -149,10 +144,7 @@ func (s *Search) handleMedia(path string, wg *sync.WaitGroup) {
 }
 
 func (s *Search) handleSearch(m *Media, wg *sync.WaitGroup) {
-	defer func() {
-		//fmt.Fprintln(os.Stderr, "[S] handleSearch() - done")
-		wg.Done()
-	}()
+	defer wg.Done()
 
 	ok, err := s.onSearch(s.ctx, m)
 	if err != nil {
@@ -166,20 +158,14 @@ func (s *Search) handleSearch(m *Media, wg *sync.WaitGroup) {
 }
 
 func (s *Search) handleMatch(m *Media, wg *sync.WaitGroup) {
-	defer func() {
-		//fmt.Fprintln(os.Stderr, "[MT] handleMatch() - done")
-		wg.Done()
-	}()
+	defer wg.Done()
 
 	s.onMatch(s.ctx, m)
 	<-s.semaphoreCh // release token
 }
 
 func (s *Search) handleError(err error, wg *sync.WaitGroup) {
-	defer func() {
-		//fmt.Fprintln(os.Stderr, "[E] handleError() - done")
-		wg.Done()
-	}()
+	defer wg.Done()
 
 	s.onError(s.ctx, err)
 	<-s.semaphoreCh // release token
