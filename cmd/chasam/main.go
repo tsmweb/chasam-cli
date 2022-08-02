@@ -106,7 +106,7 @@ func main() {
 	color.Printf("[>] Total de match: <green>%d</>\n", countMatch)
 	color.Printf("[>] Arquivo de match: <green>%s</>\n", csvFile.Name())
 
-	panic(fmt.Errorf("%s", "error goroutines"))
+	//panic(fmt.Errorf("%s", "error goroutines"))
 }
 
 func runMediaSearch(ctx context.Context) error {
