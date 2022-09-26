@@ -9,16 +9,19 @@ import (
 	"encoding/csv"
 	"flag"
 	"fmt"
-	"github.com/gookit/color"
-	"github.com/tsmweb/chasam/app/hash"
-	"github.com/tsmweb/chasam/app/media"
-	"github.com/tsmweb/chasam/pkg/progressbar"
+	"io"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gookit/color"
+	"github.com/tsmweb/chasam/app/hash"
+	"github.com/tsmweb/chasam/app/media"
+	"github.com/tsmweb/chasam/pkg/progressbar"
 )
 
 var (
@@ -35,17 +38,21 @@ var (
 	countFileCh  = make(chan struct{})
 	countMatchCh = make(chan struct{})
 
+	_extractionFolderPath = fmt.Sprintf(
+		"extraction_%s",
+		time.Now().Format("2006-01-02T15:04:05-0700"),
+	)
 	_csv *csv.Writer
 )
 
 func main() {
 	flag.Parse()
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	go func(ctx context.Context, fn context.CancelFunc) {
+	ctx, cancelFunc := signal.NotifyContext(context.Background(), os.Interrupt)
+	go func() {
 		<-ctx.Done()
-		fn()
-	}(ctx, stop)
+		cancelFunc()
+	}()
 
 	//ctx, cancelFun := context.WithCancel(context.Background())
 	//go func() {
@@ -58,7 +65,16 @@ func main() {
 		os.Exit(0)
 	}
 
-	csvFile, err := os.Create("match.csv")
+	if err := createExtractionFolder(); err != nil {
+		fmt.Fprintf(os.Stderr, "[!] Falha ao criar a pasta de extração. Error: %v", err.Error())
+		os.Exit(1)
+	}
+
+	csvName := fmt.Sprintf(
+		"match_%s.csv",
+		time.Now().Format("2006-01-02T15:04:05-0700"),
+	)
+	csvFile, err := os.Create(csvName)
 	if err != nil {
 		fmt.Printf("[!] Error: %v\n", err.Error())
 	}
@@ -109,6 +125,18 @@ func main() {
 	//panic(fmt.Errorf("%s", "error goroutines"))
 }
 
+func createExtractionFolder() error {
+	_, err := os.Stat(_extractionFolderPath)
+	if os.IsNotExist(err) {
+		if err = os.MkdirAll(_extractionFolderPath, 0o775); err != nil {
+			if !os.IsExist(err) {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func runMediaSearch(ctx context.Context) error {
 	root := *target
 	poolSize := *cpu
@@ -127,7 +155,8 @@ func runMediaSearch(ctx context.Context) error {
 		onError,
 		onSearch,
 		onMatch,
-		poolSize)
+		poolSize,
+	)
 	s.Run()
 
 	close(countFileCh)
@@ -230,7 +259,41 @@ func onMatch(_ context.Context, m *media.Media) {
 		printMatch(match.Name, m.Name(), m.Path(), match.HashType, match.Distance)
 	}
 
+	if err := extractFile(m.Path()); err != nil {
+		fmt.Fprintf(os.Stderr, "[!] Falha ao extrair o arquivo `%s`. Error: %v\n",
+			m.Path(), err.Error())
+	}
+
 	countMatchCh <- struct{}{}
+}
+
+func extractFile(path string) error {
+	dirname, filename := filepath.Split(path)
+
+	src, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	dstDir := filepath.Join(_extractionFolderPath, dirname)
+	if err = os.MkdirAll(dstDir, 0o775); err != nil {
+		if !os.IsExist(err) {
+			return err
+		}
+	}
+
+	dstPath := filepath.Join(dstDir, filename)
+	dst, err := os.Create(dstPath)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	if _, err = io.Copy(dst, src); err != nil {
+		return err
+	}
+	return nil
 }
 
 func printMatch(sourceName, targetName, targetPath, hashType string, distHamming int) {
