@@ -31,12 +31,13 @@ var (
 	hashType = flag.String("hash", "d-hash", "--hash=sha1,ed2k,a-hash,d-hash,d-hash-v,p-hash")
 	hamming  = flag.Int("hamming", 10, "--hamming=10")
 
-	_hashMap     map[hash.Type]bool
-	_hashArray   []hash.Type
-	provider     = CreateProvider()
-	_repository  media.Repository
-	countFileCh  = make(chan struct{})
-	countMatchCh = make(chan struct{})
+	_hashMap      map[hash.Type]bool
+	_hashArray    []hash.Type
+	provider      = CreateProvider()
+	_repository   media.Repository
+	countFileCh   = make(chan struct{})
+	countMatchCh  = make(chan struct{})
+	extractFileCh = make(chan string)
 
 	_extractionFolderPath = fmt.Sprintf(
 		"extraction_%s",
@@ -108,6 +109,15 @@ func main() {
 		}
 	}()
 
+	go func() {
+		for path := range extractFileCh {
+			if err := extractFile(path); err != nil {
+				fmt.Fprintf(os.Stderr, "[!] Falha ao extrair o arquivo `%s`. Error: %v\n",
+					path, err.Error())
+			}
+		}
+	}()
+
 	start := time.Now()
 
 	if err := runMediaSearch(ctx); err != nil {
@@ -160,6 +170,7 @@ func runMediaSearch(ctx context.Context) error {
 	s.Run()
 
 	close(countFileCh)
+	close(extractFileCh)
 	close(countMatchCh)
 	return nil
 }
@@ -259,11 +270,7 @@ func onMatch(_ context.Context, m *media.Media) {
 		printMatch(match.Name, m.Name(), m.Path(), match.HashType, match.Distance)
 	}
 
-	if err := extractFile(m.Path()); err != nil {
-		fmt.Fprintf(os.Stderr, "[!] Falha ao extrair o arquivo `%s`. Error: %v\n",
-			m.Path(), err.Error())
-	}
-
+	extractFileCh <- m.Path()
 	countMatchCh <- struct{}{}
 }
 
