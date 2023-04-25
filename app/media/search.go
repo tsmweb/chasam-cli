@@ -3,11 +3,12 @@ package media
 import (
 	"context"
 	"errors"
-	"github.com/tsmweb/chasam/app/hash"
-	"github.com/tsmweb/chasam/common/mediautil"
 	"io/fs"
 	"path/filepath"
 	"sync"
+
+	"github.com/tsmweb/chasam/app/hash"
+	"github.com/tsmweb/chasam/common/mediautil"
 )
 
 type OnError func(ctx context.Context, err error)

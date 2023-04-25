@@ -1,6 +1,6 @@
 module github.com/tsmweb/chasam
 
-go 1.18
+go 1.20
 
 require (
 	github.com/gookit/color v1.5.1
