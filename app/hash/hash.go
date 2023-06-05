@@ -7,13 +7,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/nfnt/resize"
-	"github.com/tsmweb/chasam/app/hash/transform"
-	"github.com/tsmweb/chasam/pkg/ed2k"
 	"image"
 	"io"
 	"math/bits"
 	"os"
+
+	"github.com/nfnt/resize"
+	"github.com/tsmweb/chasam/app/hash/transform"
+	"github.com/tsmweb/chasam/pkg/ed2k"
 )
 
 type Type int
@@ -24,6 +25,7 @@ const (
 	AHash
 	DHash
 	DHashV
+	DHashD
 	PHash
 	WHash
 )
@@ -40,6 +42,8 @@ func (t Type) String() string {
 		return "DHash"
 	case DHashV:
 		return "DHashV"
+	case DHashD:
+		return "DHashD"
 	case PHash:
 		return "PHash"
 	case WHash:
@@ -190,15 +194,24 @@ func DifferenceHashDiagonal(img image.Image) (uint64, error) {
 	idx := 0
 	var hash uint64
 
-	y := 0
-	x := 0
-	for i := 0; i < 64; i++ {
-		if pixels[y][x] < pixels[y+1][x+1] {
-			hash |= 1 << uint(64-idx-1)
+	for x := w - 1; x >= 0; x-- {
+		for y := 0; y < (w - x - 1); y++ {
+			_x := x + y
+			if pixels[y][_x] > pixels[y+1][_x+1] {
+				hash |= 1 << uint(64-idx-1)
+			}
+			idx++
 		}
-		y++
-		x++
-		idx++
+	}
+
+	for y := h - 1; y > 0; y-- {
+		for x := 0; x < (w - y - 1); x++ {
+			_y := y + x
+			if pixels[_y][x] > pixels[_y+1][x+1] {
+				hash |= 1 << uint(64-idx-1)
+			}
+			idx++
+		}
 	}
 
 	return hash, nil

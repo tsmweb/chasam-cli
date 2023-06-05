@@ -28,7 +28,7 @@ var (
 	cpu      = flag.Int("cpu", runtime.NumCPU(), "--cpu=4")
 	source   = flag.String("source", "", "--source=image/source")
 	target   = flag.String("target", "", "--target=image/target")
-	hashType = flag.String("hash", "d-hash", "--hash=sha1,ed2k,a-hash,d-hash,d-hash-v,p-hash")
+	hashType = flag.String("hash", "d-hash", "--hash=sha1,ed2k,a-hash,d-hash,d-hash-v,d-hash-d,p-hash")
 	hamming  = flag.Int("hamming", 10, "--hamming=10")
 
 	_hashMap      map[hash.Type]bool
@@ -39,10 +39,8 @@ var (
 	countMatchCh  = make(chan struct{})
 	extractFileCh = make(chan string)
 
-	_extractionFolderPath = fmt.Sprintf(
-		"extraction_%s",
-		time.Now().Format("2006-01-02T15:04:05-0700"),
-	)
+	_extractionFolderPath = "extracted"
+
 	_csv *csv.Writer
 )
 
@@ -73,7 +71,7 @@ func main() {
 
 	csvName := fmt.Sprintf(
 		"match_%s.csv",
-		time.Now().Format("2006-01-02T15:04:05-0700"),
+		time.Now().Format("2006-01-02"),
 	)
 	csvFile, err := os.Create(csvName)
 	if err != nil {
@@ -197,6 +195,9 @@ func makeHashTypes() ([]hash.Type, map[hash.Type]bool) {
 		case "d-hash-v":
 			hashArray = append(hashArray, hash.DHashV)
 			hashMap[hash.DHashV] = true
+		case "d-hash-d":
+			hashArray = append(hashArray, hash.DHashD)
+			hashMap[hash.DHashD] = true
 		case "p-hash":
 			hashArray = append(hashArray, hash.PHash)
 			hashMap[hash.PHash] = true
@@ -255,6 +256,13 @@ func onSearch(_ context.Context, m *media.Media) (bool, error) {
 		}
 	}
 
+	if _, ok := _hashMap[hash.DHashD]; ok {
+		if dist, src := _repository.FindByPerceptualHash(hash.DHashD, m.DHashD(), *hamming); dist != -1 {
+			m.AddMatch(src, hash.DHashD.String(), dist)
+			return true, nil
+		}
+	}
+
 	if _, ok := _hashMap[hash.PHash]; ok {
 		if dist, src := _repository.FindByPerceptualHash(hash.PHash, m.PHash(), *hamming); dist != -1 {
 			m.AddMatch(src, hash.PHash.String(), dist)
@@ -276,6 +284,13 @@ func onMatch(_ context.Context, m *media.Media) {
 
 func extractFile(path string) error {
 	dirname, filename := filepath.Split(path)
+
+	if dirname != "" {
+		aux := strings.Split(dirname, ":")
+		if len(aux) > 1 {
+			dirname = aux[1]
+		}
+	}
 
 	src, err := os.Open(path)
 	if err != nil {
@@ -346,6 +361,9 @@ func printHelper() {
 
 	fmt.Printf(templateHelperStr, "\td-hash-v", "hash de diferença vertical "+
 		"(calcula a diferença entre um pixel e seu vizinho abaixo, seguindo o degrade vertical)")
+
+	fmt.Printf(templateHelperStr, "\td-hash-d", "hash de diferença diagonal "+
+		"(calcula a diferença entre um pixel e seu vizinho abaixo e ao lado, seguindo o degrade diagonal)")
 
 	fmt.Printf(templateHelperStr, "\tp-hash", "perceptual hash (calcula aplicando uma transformada discreta de cosseno)")
 

@@ -1,10 +1,11 @@
 package hash
 
 import (
-	"github.com/tsmweb/chasam/common/mediautil"
 	"image"
 	"os"
 	"testing"
+
+	"github.com/tsmweb/chasam/common/mediautil"
 )
 
 func TestSha1Hash(t *testing.T) {
@@ -87,6 +88,19 @@ func TestPerceptionHash(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("P-HASH: %s\n", FormatToHex(hash1))
+}
+
+func TestPerceptionHashDiagonal(t *testing.T) {
+	img, err := loadImage("../../../tests/cavalo.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hash1, err := DifferenceHashDiagonal(img)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("D-HASH-DIAGONAL: %s\n", FormatToHex(hash1))
 }
 
 func TestWaveletHash(t *testing.T) {

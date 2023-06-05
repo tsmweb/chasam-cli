@@ -2,10 +2,11 @@ package repository
 
 import (
 	"errors"
-	"github.com/tsmweb/chasam/app/hash"
-	"github.com/tsmweb/chasam/app/media"
 	"os"
 	"path/filepath"
+
+	"github.com/tsmweb/chasam/app/hash"
+	"github.com/tsmweb/chasam/app/media"
 )
 
 type mediaRepositoryMem struct {
@@ -102,6 +103,10 @@ func NewMediaRepositoryMem(dir string, hashTypes []hash.Type) (media.Repository,
 			case hash.DHashV:
 				if h := m.DHashV(); h > 0 {
 					repository.AppendPerceptualHash(hash.DHashV, h, m.Name())
+				}
+			case hash.DHashD:
+				if h := m.DHashD(); h > 0 {
+					repository.AppendPerceptualHash(hash.DHashD, h, m.Name())
 				}
 			case hash.PHash:
 				if h := m.PHash(); h > 0 {

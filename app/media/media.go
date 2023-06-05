@@ -3,13 +3,14 @@ package media
 import (
 	"errors"
 	"fmt"
-	"github.com/tsmweb/chasam/app/hash"
-	"github.com/tsmweb/chasam/common/mediautil"
 	"image"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/tsmweb/chasam/app/hash"
+	"github.com/tsmweb/chasam/common/mediautil"
 )
 
 type Match struct {
@@ -30,6 +31,7 @@ type Media struct {
 	aHash       uint64
 	dHash       uint64
 	dHashV      uint64
+	dHashD      uint64
 	pHash       uint64
 	wHash       uint64
 	match       []Match
@@ -97,6 +99,10 @@ func NewMedia(path string, hashTypes []hash.Type) (*Media, error) {
 			if err = m.setDHashV(getImg()); err != nil {
 				return nil, err
 			}
+		case hash.DHashD:
+			if err = m.setDHashD(getImg()); err != nil {
+				return nil, err
+			}
 		case hash.PHash:
 			if err = m.setPHash(getImg()); err != nil {
 				return nil, err
@@ -149,6 +155,10 @@ func (m *Media) DHashV() uint64 {
 	return m.dHashV
 }
 
+func (m *Media) DHashD() uint64 {
+	return m.dHashD
+}
+
 func (m *Media) PHash() uint64 {
 	return m.pHash
 }
@@ -197,6 +207,15 @@ func (m *Media) setDHashV(img image.Image) error {
 	h, err := hash.DifferenceHashVertical(img)
 	if err != nil {
 		return fmt.Errorf("Media::setDHashV(%s) | Error: %v", m.path, err)
+	}
+	m.dHashV = h
+	return nil
+}
+
+func (m *Media) setDHashD(img image.Image) error {
+	h, err := hash.DifferenceHashDiagonal(img)
+	if err != nil {
+		return fmt.Errorf("Media::setDHashD(%s) | Error: %v", m.path, err)
 	}
 	m.dHashV = h
 	return nil
