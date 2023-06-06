@@ -51,19 +51,6 @@ func TestAverageHash(t *testing.T) {
 	t.Logf("A-HASH: %s\n", FormatToHex(hash1))
 }
 
-func TestModeHash(t *testing.T) {
-	img, err := loadImage("../../../tests/source/cavalo.jpg")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	hash1, err := ModeHash(img)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("M-HASH: %s\n", FormatToHex(hash1))
-}
-
 func TestDifferenceHash(t *testing.T) {
 	img, err := loadImage("../../test/img.jpg")
 	if err != nil {
@@ -90,13 +77,13 @@ func TestDifferenceHashVertical(t *testing.T) {
 	t.Logf("Meu DifferenceHashVertical: %s\n", FormatToHex(hash1))
 }
 
-func TestDifferenceHashDiagonal(t *testing.T) {
+func TestDifferenceDomiHash(t *testing.T) {
 	img, err := loadImage("../../../tests/source/cavalo.jpg")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	hash1, err := DifferenceHashDiagonal(img)
+	hash1, err := DifferenceDomiHash(img)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,13 +103,13 @@ func TestPerceptionHash(t *testing.T) {
 	t.Logf("P-HASH: %s\n", FormatToHex(hash1))
 }
 
-func TestLeonardHash(t *testing.T) {
+func TestPerceptionChHash(t *testing.T) {
 	img, err := loadImage("../../../tests/source/cavalo.jpg")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	hash1, err := LeonardHash(img)
+	hash1, err := PerceptionChHash(img)
 	if err != nil {
 		t.Fatal(err)
 	}

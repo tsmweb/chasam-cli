@@ -23,13 +23,12 @@ const (
 	SHA1 Type = iota
 	ED2K
 	AHash
-	MHash
 	DHash
 	DHashV
-	DHashD
 	PHash
-	LHash
 	WHash
+	DomiHash
+	ChHash
 )
 
 func (t Type) String() string {
@@ -40,20 +39,18 @@ func (t Type) String() string {
 		return "ED2K"
 	case AHash:
 		return "AHash"
-	case MHash:
-		return "MHash"
 	case DHash:
 		return "DHash"
 	case DHashV:
 		return "DHashV"
-	case DHashD:
-		return "DHashD"
 	case PHash:
 		return "PHash"
-	case LHash:
-		return "LHash"
 	case WHash:
 		return "WHash"
+	case DomiHash:
+		return "DomiHash"
+	case ChHash:
+		return "ChHash"
 	default:
 		return ""
 	}
@@ -137,47 +134,6 @@ func AverageHash(img image.Image) (uint64, error) {
 	return hash, nil
 }
 
-func ModeHash(img image.Image) (uint64, error) {
-	if img == nil {
-		return 0, errors.New("image cannot be nil")
-	}
-
-	w, h := 8, 8
-	resized := resize.Resize(uint(w), uint(h), img, resize.Bilinear)
-	pixels := transform.ConvertToGrayArray(resized)
-	flatPixels := [64]float64{}
-
-	countMap := make(map[int]int)
-
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			pixel := pixels[y][x]
-			countMap[int(pixel)]++
-			flatPixels[h*y+x] = pixel
-		}
-	}
-
-	var pixel int
-	max := 0
-
-	for p, c := range countMap {
-		if c > max {
-			max = c
-			pixel = p
-		}
-	}
-
-	var hash uint64
-
-	for idx, p := range flatPixels {
-		if int(p) < pixel {
-			hash |= 1 << uint(64-idx-1)
-		}
-	}
-
-	return hash, nil
-}
-
 // DifferenceHash function returns a hash computation of difference hash.
 // Implementation follows
 // https://www.hackerfactor.com/blog/index.php?/archives/529-Kind-of-Like-That.html
@@ -230,40 +186,6 @@ func DifferenceHashVertical(img image.Image) (uint64, error) {
 	return hash, nil
 }
 
-func DifferenceHashDiagonal(img image.Image) (uint64, error) {
-	if img == nil {
-		return 0, errors.New("image cannot be nil")
-	}
-
-	w, h := 9, 9
-	resized := resize.Resize(uint(w), uint(h), img, resize.Bilinear) // testar resize.Bicubic
-	pixels := transform.ConvertToGrayArray(resized)
-	idx := 0
-	var hash uint64
-
-	for x := w - 1; x >= 0; x-- {
-		for y := 0; y < (w - x - 1); y++ {
-			_x := x + y
-			if pixels[y][_x] > pixels[y+1][_x+1] {
-				hash |= 1 << uint(64-idx-1)
-			}
-			idx++
-		}
-	}
-
-	for y := h - 1; y > 0; y-- {
-		for x := 0; x < (w - y - 1); x++ {
-			_y := y + x
-			if pixels[_y][x] > pixels[_y+1][x+1] {
-				hash |= 1 << uint(64-idx-1)
-			}
-			idx++
-		}
-	}
-
-	return hash, nil
-}
-
 // PerceptionHash function returns a hash computation of perception hash vertically.
 // Implementation follows
 // https://www.hackerfactor.com/blog/index.php?/archives/432-Looks-Like-It.html
@@ -306,7 +228,45 @@ func PerceptionHash(img image.Image) (uint64, error) {
 	return hash, nil
 }
 
-func LeonardHash(img image.Image) (uint64, error) {
+func WaveletHash(img image.Image) (uint64, error) {
+	return 0, nil
+}
+
+func DifferenceDomiHash(img image.Image) (uint64, error) {
+	if img == nil {
+		return 0, errors.New("image cannot be nil")
+	}
+
+	w, h := 9, 9
+	resized := resize.Resize(uint(w), uint(h), img, resize.Bilinear) // testar resize.Bicubic
+	pixels := transform.ConvertToGrayArray(resized)
+	idx := 0
+	var hash uint64
+
+	for x := w - 1; x >= 0; x-- {
+		for y := 0; y < (w - x - 1); y++ {
+			_x := x + y
+			if pixels[y][_x] > pixels[y+1][_x+1] {
+				hash |= 1 << uint(64-idx-1)
+			}
+			idx++
+		}
+	}
+
+	for y := h - 1; y > 0; y-- {
+		for x := 0; x < (w - y - 1); x++ {
+			_y := y + x
+			if pixels[_y][x] > pixels[_y+1][x+1] {
+				hash |= 1 << uint(64-idx-1)
+			}
+			idx++
+		}
+	}
+
+	return hash, nil
+}
+
+func PerceptionChHash(img image.Image) (uint64, error) {
 	if img == nil {
 		return 0, errors.New("image cannot be nil")
 	}
@@ -343,10 +303,6 @@ func LeonardHash(img image.Image) (uint64, error) {
 	}
 
 	return hash, nil
-}
-
-func WaveletHash(img image.Image) (uint64, error) {
-	return 0, nil
 }
 
 func FormatToHex(hash uint64) string {
