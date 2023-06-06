@@ -29,10 +29,12 @@ type Media struct {
 	ed2k        string
 	sha1        string
 	aHash       uint64
+	mHash       uint64
 	dHash       uint64
 	dHashV      uint64
 	dHashD      uint64
 	pHash       uint64
+	lHash       uint64
 	wHash       uint64
 	match       []Match
 }
@@ -91,6 +93,10 @@ func NewMedia(path string, hashTypes []hash.Type) (*Media, error) {
 			if err = m.setAHash(getImg()); err != nil {
 				return nil, err
 			}
+		case hash.MHash:
+			if err = m.setMHash(getImg()); err != nil {
+				return nil, err
+			}
 		case hash.DHash:
 			if err = m.setDHash(getImg()); err != nil {
 				return nil, err
@@ -105,6 +111,10 @@ func NewMedia(path string, hashTypes []hash.Type) (*Media, error) {
 			}
 		case hash.PHash:
 			if err = m.setPHash(getImg()); err != nil {
+				return nil, err
+			}
+		case hash.LHash:
+			if err = m.setLHash(getImg()); err != nil {
 				return nil, err
 			}
 		default:
@@ -147,6 +157,10 @@ func (m *Media) AHash() uint64 {
 	return m.aHash
 }
 
+func (m *Media) MHash() uint64 {
+	return m.mHash
+}
+
 func (m *Media) DHash() uint64 {
 	return m.dHash
 }
@@ -161,6 +175,10 @@ func (m *Media) DHashD() uint64 {
 
 func (m *Media) PHash() uint64 {
 	return m.pHash
+}
+
+func (m *Media) LHash() uint64 {
+	return m.lHash
 }
 
 func (m *Media) WHash() uint64 {
@@ -194,6 +212,15 @@ func (m *Media) setAHash(img image.Image) error {
 	return nil
 }
 
+func (m *Media) setMHash(img image.Image) error {
+	h, err := hash.ModeHash(img)
+	if err != nil {
+		return fmt.Errorf("Media::setMHash(%s) | Error: %v", m.path, err)
+	}
+	m.mHash = h
+	return nil
+}
+
 func (m *Media) setDHash(img image.Image) error {
 	h, err := hash.DifferenceHash(img)
 	if err != nil {
@@ -217,7 +244,7 @@ func (m *Media) setDHashD(img image.Image) error {
 	if err != nil {
 		return fmt.Errorf("Media::setDHashD(%s) | Error: %v", m.path, err)
 	}
-	m.dHashV = h
+	m.dHashD = h
 	return nil
 }
 
@@ -227,6 +254,15 @@ func (m *Media) setPHash(img image.Image) error {
 		return fmt.Errorf("Media::setPHash(%s) | Error: %v", m.path, err)
 	}
 	m.pHash = h
+	return nil
+}
+
+func (m *Media) setLHash(img image.Image) error {
+	h, err := hash.LeonardHash(img)
+	if err != nil {
+		return fmt.Errorf("Media::setLHash(%s) | Error: %v", m.path, err)
+	}
+	m.lHash = h
 	return nil
 }
 

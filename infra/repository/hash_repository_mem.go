@@ -96,6 +96,10 @@ func NewMediaRepositoryMem(dir string, hashTypes []hash.Type) (media.Repository,
 				if h := m.AHash(); h > 0 {
 					repository.AppendPerceptualHash(hash.AHash, h, m.Name())
 				}
+			case hash.MHash:
+				if h := m.MHash(); h > 0 {
+					repository.AppendPerceptualHash(hash.MHash, h, m.Name())
+				}
 			case hash.DHash:
 				if h := m.DHash(); h > 0 {
 					repository.AppendPerceptualHash(hash.DHash, h, m.Name())
@@ -111,6 +115,10 @@ func NewMediaRepositoryMem(dir string, hashTypes []hash.Type) (media.Repository,
 			case hash.PHash:
 				if h := m.PHash(); h > 0 {
 					repository.AppendPerceptualHash(hash.PHash, h, m.Name())
+				}
+			case hash.LHash:
+				if h := m.LHash(); h > 0 {
+					repository.AppendPerceptualHash(hash.LHash, h, m.Name())
 				}
 			case hash.WHash:
 				return nil, errors.New("w-hash not implemented")

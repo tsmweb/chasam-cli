@@ -23,10 +23,12 @@ const (
 	SHA1 Type = iota
 	ED2K
 	AHash
+	MHash
 	DHash
 	DHashV
 	DHashD
 	PHash
+	LHash
 	WHash
 )
 
@@ -38,6 +40,8 @@ func (t Type) String() string {
 		return "ED2K"
 	case AHash:
 		return "AHash"
+	case MHash:
+		return "MHash"
 	case DHash:
 		return "DHash"
 	case DHashV:
@@ -46,6 +50,8 @@ func (t Type) String() string {
 		return "DHashD"
 	case PHash:
 		return "PHash"
+	case LHash:
+		return "LHash"
 	case WHash:
 		return "WHash"
 	default:
@@ -124,6 +130,47 @@ func AverageHash(img image.Image) (uint64, error) {
 
 	for idx, p := range flatPixels {
 		if p > avg {
+			hash |= 1 << uint(64-idx-1)
+		}
+	}
+
+	return hash, nil
+}
+
+func ModeHash(img image.Image) (uint64, error) {
+	if img == nil {
+		return 0, errors.New("image cannot be nil")
+	}
+
+	w, h := 8, 8
+	resized := resize.Resize(uint(w), uint(h), img, resize.Bilinear)
+	pixels := transform.ConvertToGrayArray(resized)
+	flatPixels := [64]float64{}
+
+	countMap := make(map[int]int)
+
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			pixel := pixels[y][x]
+			countMap[int(pixel)]++
+			flatPixels[h*y+x] = pixel
+		}
+	}
+
+	var pixel int
+	max := 0
+
+	for p, c := range countMap {
+		if c > max {
+			max = c
+			pixel = p
+		}
+	}
+
+	var hash uint64
+
+	for idx, p := range flatPixels {
+		if int(p) < pixel {
 			hash |= 1 << uint(64-idx-1)
 		}
 	}
@@ -228,6 +275,45 @@ func PerceptionHash(img image.Image) (uint64, error) {
 	w, h := 32, 32
 	resized := resize.Resize(uint(w), uint(h), img, resize.Bilinear)
 	pixels := transform.ConvertToGrayArray(resized)
+	dct := transform.DCT2D(pixels, w, h)
+
+	// calculate the average of the dct.
+	w, h = 8, 8
+	flatDct := [64]float64{} // 8x8
+	sum := 0.0
+
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			sum += dct[y][x]
+			flatDct[h*y+x] = dct[y][x]
+		}
+	}
+
+	// excluding the first term since the DC coefficient can be significantly different from the
+	// other values and will throw off the average.
+	sum -= dct[0][0]
+	avg := sum / float64(63)
+
+	// extract the hash.
+	var hash uint64
+
+	for idx, p := range flatDct {
+		if p > avg {
+			hash |= 1 << uint(64-idx-1)
+		}
+	}
+
+	return hash, nil
+}
+
+func LeonardHash(img image.Image) (uint64, error) {
+	if img == nil {
+		return 0, errors.New("image cannot be nil")
+	}
+
+	w, h := 32, 32
+	resized := resize.Resize(uint(w), uint(h), img, resize.Bilinear)
+	pixels := transform.ConvertToThresholdArray(resized, 114)
 	dct := transform.DCT2D(pixels, w, h)
 
 	// calculate the average of the dct.

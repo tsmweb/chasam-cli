@@ -28,7 +28,7 @@ var (
 	cpu      = flag.Int("cpu", runtime.NumCPU(), "--cpu=4")
 	source   = flag.String("source", "", "--source=image/source")
 	target   = flag.String("target", "", "--target=image/target")
-	hashType = flag.String("hash", "d-hash", "--hash=sha1,ed2k,a-hash,d-hash,d-hash-v,d-hash-d,p-hash")
+	hashType = flag.String("hash", "d-hash", "--hash=sha1,ed2k,a-hash,m-hash,d-hash,d-hash-v,d-hash-d,p-hash,l-hash")
 	hamming  = flag.Int("hamming", 10, "--hamming=10")
 
 	_hashMap      map[hash.Type]bool
@@ -189,6 +189,9 @@ func makeHashTypes() ([]hash.Type, map[hash.Type]bool) {
 		case "a-hash":
 			hashArray = append(hashArray, hash.AHash)
 			hashMap[hash.AHash] = true
+		case "m-hash":
+			hashArray = append(hashArray, hash.MHash)
+			hashMap[hash.MHash] = true
 		case "d-hash":
 			hashArray = append(hashArray, hash.DHash)
 			hashMap[hash.DHash] = true
@@ -201,6 +204,9 @@ func makeHashTypes() ([]hash.Type, map[hash.Type]bool) {
 		case "p-hash":
 			hashArray = append(hashArray, hash.PHash)
 			hashMap[hash.PHash] = true
+		case "l-hash":
+			hashArray = append(hashArray, hash.LHash)
+			hashMap[hash.LHash] = true
 		case "w-hash":
 			hashArray = append(hashArray, hash.WHash)
 			hashMap[hash.WHash] = true
@@ -242,6 +248,13 @@ func onSearch(_ context.Context, m *media.Media) (bool, error) {
 		}
 	}
 
+	if _, ok := _hashMap[hash.MHash]; ok {
+		if dist, src := _repository.FindByPerceptualHash(hash.MHash, m.MHash(), *hamming); dist != -1 {
+			m.AddMatch(src, hash.MHash.String(), dist)
+			return true, nil
+		}
+	}
+
 	if _, ok := _hashMap[hash.DHash]; ok {
 		if dist, src := _repository.FindByPerceptualHash(hash.DHash, m.DHash(), *hamming); dist != -1 {
 			m.AddMatch(src, hash.DHash.String(), dist)
@@ -266,6 +279,13 @@ func onSearch(_ context.Context, m *media.Media) (bool, error) {
 	if _, ok := _hashMap[hash.PHash]; ok {
 		if dist, src := _repository.FindByPerceptualHash(hash.PHash, m.PHash(), *hamming); dist != -1 {
 			m.AddMatch(src, hash.PHash.String(), dist)
+			return true, nil
+		}
+	}
+
+	if _, ok := _hashMap[hash.LHash]; ok {
+		if dist, src := _repository.FindByPerceptualHash(hash.LHash, m.LHash(), *hamming); dist != -1 {
+			m.AddMatch(src, hash.LHash.String(), dist)
 			return true, nil
 		}
 	}
@@ -356,6 +376,9 @@ func printHelper() {
 	fmt.Printf(templateHelperStr, "\ta-hash", "hash médio "+
 		"(calculado pela média de todos os valores de cinza da imagem)")
 
+	fmt.Printf(templateHelperStr, "\tm-hash", "hash moda "+
+		"(calculado pela moda de todos os valores de cinza da imagem)")
+
 	fmt.Printf(templateHelperStr, "\td-hash", "hash de diferença "+
 		"(calcula a diferença entre um pixel e seu vizinho da direita, seguindo o degrade horizontal)")
 
@@ -366,6 +389,8 @@ func printHelper() {
 		"(calcula a diferença entre um pixel e seu vizinho abaixo e ao lado, seguindo o degrade diagonal)")
 
 	fmt.Printf(templateHelperStr, "\tp-hash", "perceptual hash (calcula aplicando uma transformada discreta de cosseno)")
+
+	fmt.Printf(templateHelperStr, "\tl-hash", "leonard hash (converte a imagem em treshold e calcula aplicando uma transformada discreta de cosseno)")
 
 	fmt.Printf(templateHelperStr, "\tw-hash", "wavelet hash (calcula aplicando uma transformada wavelet bidimensional)")
 

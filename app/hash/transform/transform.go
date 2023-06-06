@@ -7,6 +7,82 @@ import (
 	"sync"
 )
 
+func ConvertToThreshold(img image.Image, limiar uint8) image.Image {
+	bounds := img.Bounds()
+	newIMG := image.NewRGBA(bounds)
+
+	for y := 0; y < bounds.Max.Y; y++ {
+		for x := 0; x < bounds.Max.X; x++ {
+			actualPixel := img.At(x, y)
+			r, g, b, _ := actualPixel.RGBA()
+			luminosity :=
+				0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)
+			pixel := color.Gray{uint8(luminosity / 256)}
+
+			if pixel.Y > limiar {
+				newIMG.Set(x, y, color.Gray{255})
+			} else {
+				newIMG.Set(x, y, color.Gray{0})
+			}
+		}
+	}
+
+	return newIMG
+}
+
+func ConvertToThresholdArray(img image.Image, limiar uint8) [][]float64 {
+	switch it := img.(type) {
+	case *image.YCbCr:
+		return pixelToTresholdYCbCR(it, limiar)
+	default:
+		return pixelToTresholdRGBA(it, limiar)
+	}
+}
+
+func pixelToTresholdYCbCR(img *image.YCbCr, limiar uint8) [][]float64 {
+	bounds := img.Bounds()
+	w, h := bounds.Max.X-bounds.Min.X, bounds.Max.Y-bounds.Min.Y
+	pixels := make([][]float64, h)
+
+	for y := range pixels {
+		pixels[y] = make([]float64, w)
+		for x := range pixels[y] {
+			luminosity := pixelToGray(img.YCbCrAt(x, y).RGBA())
+			pixel := color.Gray{uint8(luminosity)}
+
+			if pixel.Y > limiar {
+				pixels[y][x] = 255
+			} else {
+				pixels[y][x] = 0
+			}
+		}
+	}
+
+	return pixels
+}
+
+func pixelToTresholdRGBA(img image.Image, limiar uint8) [][]float64 {
+	bounds := img.Bounds()
+	w, h := bounds.Max.X-bounds.Min.X, bounds.Max.Y-bounds.Min.Y
+	pixels := make([][]float64, h)
+
+	for y := range pixels {
+		pixels[y] = make([]float64, w)
+		for x := range pixels[y] {
+			luminosity := pixelToGray(img.At(x, y).RGBA())
+			pixel := color.Gray{uint8(luminosity)}
+
+			if pixel.Y > limiar {
+				pixels[y][x] = 255
+			} else {
+				pixels[y][x] = 0
+			}
+		}
+	}
+
+	return pixels
+}
+
 func ConvertToGray(img image.Image) image.Image {
 	bounds := img.Bounds()
 	newImg := image.NewRGBA(bounds)
